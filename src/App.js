@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '@/firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
@@ -85,7 +85,6 @@ function App() {
           },
         }}
       />
-      <BrowserRouter>
         <Routes>
           <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
@@ -105,8 +104,8 @@ function App() {
           <Route path="/recurring" element={<PrivateRoute><RecurringExpenses /></PrivateRoute>} />
           <Route path="/challenges" element={<PrivateRoute><Challenges /></PrivateRoute>} />
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/auth"} replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
     </>
   );
 }
