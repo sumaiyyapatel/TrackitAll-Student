@@ -1,21 +1,17 @@
+export { 
+  formatDate, 
+  formatDateTime, 
+  getCurrentDateISO, 
+  calculateDaysRemaining,
+  formatDuration
+} from './dateHelper';
+
 export const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0
   }).format(amount);
-};
-
-export const formatDate = (date) => {
-  if (!date) return '';
-  const d = date.toDate ? date.toDate() : new Date(date);
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
-export const formatTime = (date) => {
-  if (!date) return '';
-  const d = date.toDate ? date.toDate() : new Date(date);
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 };
 
 export const getAttendanceColor = (percentage) => {
@@ -64,15 +60,6 @@ export const getGreeting = () => {
   if (hour < 12) return 'Good Morning';
   if (hour < 17) return 'Good Afternoon';
   return 'Good Evening';
-};
-
-export const calculateDaysRemaining = (deadline) => {
-  if (!deadline) return null;
-  const deadlineDate = deadline.toDate ? deadline.toDate() : new Date(deadline);
-  const today = new Date();
-  const diffTime = deadlineDate - today;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
 };
 
 export const getGoalProgress = (current, target) => {

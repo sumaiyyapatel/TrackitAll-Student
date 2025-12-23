@@ -62,7 +62,8 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
-    "test": "craco test"
+    "test": "craco test",
+    "test:e2e": "playwright test --config=e2e/playwright.config.js"
   },
   "browserslist": {
     "production": [
