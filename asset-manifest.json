@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/TrackitAll-Student/static/css/main.77a082bc.css",
+    "main.js": "/TrackitAll-Student/static/js/main.fd8a7f37.js",
+    "index.html": "/TrackitAll-Student/index.html",
+    "main.77a082bc.css.map": "/TrackitAll-Student/static/css/main.77a082bc.css.map",
+    "main.fd8a7f37.js.map": "/TrackitAll-Student/static/js/main.fd8a7f37.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.77a082bc.css",
+    "static/js/main.fd8a7f37.js"
+  ]
+}
