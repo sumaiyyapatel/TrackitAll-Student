@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 import { POINTS } from '@/utils/gamification';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { expenseSchema, validateFormData, sanitizeInput } from '@/utils/validation';
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Education', 'Bills', 'Health', 'Other'];
 const CATEGORY_COLORS = {
@@ -63,6 +64,21 @@ export default function Finance() {
 
   const handleAddExpense = async (e) => {
     e.preventDefault();
+    const validation = validateFormData(
+      {
+        amount: parseFloat(newExpense.amount),
+        category: newExpense.category,
+        description: newExpense.description
+      },
+      expenseSchema
+    );
+
+    if (!validation.valid) {
+      Object.entries(validation.error).forEach(([field, message]) => {
+        toast.error(`${field}: ${message}`);
+      });
+      return;
+    }
     try {
       await addDoc(collection(db, 'expenses'), {
         ...newExpense,
@@ -93,7 +109,7 @@ export default function Finance() {
     const categoryTotals = {};
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
+
     expenses
       .filter(exp => new Date(exp.date) >= startOfMonth)
       .forEach(exp => {
