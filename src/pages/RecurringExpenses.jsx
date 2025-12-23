@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { RefreshCw, Plus, Calendar, Trash2 } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { RefreshCw, Plus, Calendar, Trash2, Edit2 } from 'lucide-react';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ export default function RecurringExpenses() {
     frequency: 'monthly',
     startDate: new Date().toISOString().split('T')[0]
   });
+  const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,6 +40,17 @@ export default function RecurringExpenses() {
       loadRecurring();
     }
   }, [user]);
+
+  // Track pending deletes so we can cancel them if user clicks Undo
+  const pendingDeletes = useRef(new Map());
+
+  useEffect(() => {
+    return () => {
+      // cleanup any pending timeouts when component unmounts
+      pendingDeletes.current.forEach(timeoutId => clearTimeout(timeoutId));
+      pendingDeletes.current.clear();
+    };
+  }, []);
 
   const loadRecurring = async () => {
     try {
@@ -77,15 +89,100 @@ export default function RecurringExpenses() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const resetForm = () => {
+    setNewRecurring({ name: '', amount: '', category: 'Subscriptions', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0] });
+    setEditingId(null);
+    setShowAdd(false);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
     try {
-      await deleteDoc(doc(db, 'recurring_expenses', id));
-      toast.success('Recurring expense deleted');
+      const payload = {
+        name: newRecurring.name,
+        amount: parseFloat(newRecurring.amount),
+        category: newRecurring.category,
+        frequency: newRecurring.frequency,
+        startDate: newRecurring.startDate,
+        userId: user.uid
+      };
+
+      if (editingId) {
+        // update existing
+        await updateDoc(doc(db, 'recurring_expenses', editingId), payload);
+        toast.success('Recurring expense updated!');
+      } else {
+        // add new
+        await addDoc(collection(db, 'recurring_expenses'), {
+          ...payload,
+          createdAt: new Date().toISOString(),
+          lastProcessed: null
+        });
+        toast.success('Recurring expense added!');
+      }
+
+      resetForm();
       loadRecurring();
     } catch (error) {
-      console.error('Error deleting recurring expense:', error);
-      toast.error('Failed to delete');
+      console.error('Error saving recurring expense:', error);
+      toast.error('Failed to save recurring expense');
     }
+  };
+
+  const handleDelete = async (id) => {
+    const itemToDelete = recurring.find(r => r.id === id);
+    if (!itemToDelete) return;
+
+    // Optimistic update: remove from UI immediately
+    setRecurring(prev => prev.filter(r => r.id !== id));
+
+    // Show undo toast
+    toast.success('Recurring expense deleted', {
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          // If a delete is pending, cancel it and restore the item
+          const timeoutId = pendingDeletes.current.get(id);
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            pendingDeletes.current.delete(id);
+          }
+
+          try {
+            // Restore using the original document ID so item appears as before
+            const payload = { ...itemToDelete };
+            delete payload.id;
+            await setDoc(doc(db, 'recurring_expenses', id), payload);
+            // Re-insert into local state so UI updates instantly
+            setRecurring(prev => [ { id, ...payload }, ...prev ]);
+            toast.success('Recurring expense restored');
+          } catch (err) {
+            console.error('Error restoring recurring expense:', err);
+            toast.error('Failed to restore');
+            // As a fallback, reload from server
+            loadRecurring();
+          }
+        }
+      },
+      duration: 5000
+    });
+
+    // Schedule actual delete after duration (matches toast duration)
+    const timeoutId = setTimeout(async () => {
+      try {
+        await deleteDoc(doc(db, 'recurring_expenses', id));
+        // If deletion completes, remove from pending map
+        pendingDeletes.current.delete(id);
+      } catch (err) {
+        console.error('Error deleting recurring expense:', err);
+        toast.error('Failed to delete');
+        // reload to sync UI with backend
+        loadRecurring();
+      }
+    }, 5000);
+
+    // store timeout so Undo can cancel it
+    pendingDeletes.current.set(id, timeoutId);
   };
 
   const getMonthlyTotal = () => {
@@ -121,7 +218,7 @@ export default function RecurringExpenses() {
           </div>
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
             <DialogTrigger asChild>
-              <Button data-testid="add-recurring-button" className="bg-amber-600 hover:bg-amber-500">
+              <Button data-testid="add-recurring-button" className="bg-amber-600 hover:bg-amber-500" onClick={() => { setEditingId(null); setNewRecurring({ name: '', amount: '', category: 'Subscriptions', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0] }); }}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Recurring
               </Button>
@@ -130,7 +227,7 @@ export default function RecurringExpenses() {
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Add Recurring Expense</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleAddRecurring} className="space-y-4">
+              <form onSubmit={handleSave} className="space-y-4">
                 <div>
                   <Label className="text-slate-300">Name</Label>
                   <Input
@@ -190,9 +287,14 @@ export default function RecurringExpenses() {
                     className="bg-slate-950 border-slate-800 text-slate-200"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-500">
-                  Add Recurring Expense
-                </Button>
+                <div className="flex gap-3">
+                  <Button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-500">
+                    {editingId ? 'Update' : 'Create'}
+                  </Button>
+                  <Button type="button" onClick={resetForm} className="flex-1 bg-slate-700">
+                    Cancel
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -290,6 +392,25 @@ export default function RecurringExpenses() {
                           </p>
                         )}
                       </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          // open dialog in edit mode
+                          setEditingId(exp.id);
+                          setNewRecurring({
+                            name: exp.name || '',
+                            amount: (exp.amount ?? '').toString(),
+                            category: exp.category || 'Subscriptions',
+                            frequency: exp.frequency || 'monthly',
+                            startDate: exp.startDate || new Date().toISOString().split('T')[0]
+                          });
+                          setShowAdd(true);
+                        }}
+                        className="border-slate-600 text-slate-200 hover:bg-slate-700/10"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
