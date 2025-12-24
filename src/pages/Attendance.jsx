@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Calendar, Plus, Check, X, TrendingUp, AlertCircle } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,13 +40,8 @@ export default function Attendance() {
       const coursesSnap = await getDocs(coursesQuery);
       const coursesData = coursesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Load attendance
-      const attendanceQuery = query(
-        collection(db, 'attendance'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const attendanceSnap = await getDocs(attendanceQuery);
+      // Load attendance (canonical query + JS filtering if needed)
+      const attendanceSnap = await getDocs(userRecent(db, 'attendance', user.uid, 500));
       const attendanceData = attendanceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       setCourses(coursesData);

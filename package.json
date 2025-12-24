@@ -65,6 +65,8 @@
       "build": "craco build",
       "test": "craco test",
       "test:e2e": "playwright test --config=e2e/playwright.config.js",
+      "seed:leaderboard": "node scripts/seed_leaderboard.js",
+   "update:leaderboard": "node scripts/update_leaderboard.js",
       "predeploy": "npm run build",
       "deploy": "gh-pages -d build"
    },

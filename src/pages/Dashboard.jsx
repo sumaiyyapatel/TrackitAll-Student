@@ -4,10 +4,12 @@ import { StatCard } from '@/components/StatCard';
 import { QuickActions } from '@/components/QuickActions';
 import useStore from '@/store/useStore';
 import { Calendar, Wallet, Heart, Smile, Trophy, TrendingUp } from 'lucide-react';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { userRecent } from '@/utils/canonicalQueries';
 import { formatCurrency, getGreeting } from '@/utils/helpers';
 import { Progress } from '@/components/ui/progress';
+import Leaderboard from '../components/Leaderboard';
 
 export default function Dashboard() {
   const { user, userStats } = useStore();
@@ -32,54 +34,58 @@ export default function Dashboard() {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
 
-      // Attendance
-      const attendanceQuery = query(
-        collection(db, 'attendance'),
-        where('userId', '==', user.uid),
-        where('date', '>=', startOfMonth)
-      );
-      const attendanceSnap = await getDocs(attendanceQuery);
-      const attendedCount = attendanceSnap.docs.filter(doc => doc.data().attended).length;
-      const totalCount = attendanceSnap.size || 1;
+      // helper to normalize Firestore Timestamp / Date / string
+      const toDate = (val) => {
+        if (!val) return null;
+        // Firestore Timestamp
+        if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
+        // ISO string or number
+        return new Date(val);
+      };
+
+      // Attendance (use canonical query + JS filtering)
+      const attendanceSnap = await getDocs(userRecent(db, 'attendance', user.uid, 200));
+      const attendanceDocs = attendanceSnap.docs.map(d => d.data()).filter(d => {
+        const date = toDate(d.date);
+        return date && date >= startOfMonth;
+      });
+      const attendedCount = attendanceDocs.filter(d => d.attended).length;
+      const totalCount = attendanceDocs.length || 1;
       const attendancePercentage = Math.round((attendedCount / totalCount) * 100);
 
       // Expenses
-      const expensesQuery = query(
-        collection(db, 'expenses'),
-        where('userId', '==', user.uid),
-        where('date', '>=', startOfMonth)
-      );
-      const expensesSnap = await getDocs(expensesQuery);
-      const monthlyExpenses = expensesSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      // Expenses (canonical query + JS filtering)
+      const expensesSnap = await getDocs(userRecent(db, 'expenses', user.uid, 200));
+      const expensesDocs = expensesSnap.docs.map(d => d.data()).filter(d => {
+        const date = toDate(d.date);
+        return date && date >= startOfMonth;
+      });
+      const monthlyExpenses = expensesDocs.reduce((sum, doc) => sum + (doc.amount || 0), 0);
 
       // Workouts
-      const workoutsQuery = query(
-        collection(db, 'health'),
-        where('userId', '==', user.uid),
-        where('type', '==', 'workout'),
-        where('date', '>=', startOfWeek)
-      );
-      const workoutsSnap = await getDocs(workoutsQuery);
-      const weeklyWorkouts = workoutsSnap.size;
+      // Workouts (canonical query + JS filtering)
+      const workoutsSnap = await getDocs(userRecent(db, 'health', user.uid, 200));
+      const workoutsDocs = workoutsSnap.docs.map(d => d.data()).filter(d => {
+        const date = toDate(d.date);
+        return d.type === 'workout' && date && date >= startOfWeek;
+      });
+      const weeklyWorkouts = workoutsDocs.length;
 
       // Mood
-      const moodQuery = query(
-        collection(db, 'mood_entries'),
-        where('userId', '==', user.uid),
-        where('date', '>=', startOfMonth)
-      );
-      const moodSnap = await getDocs(moodQuery);
-      const totalMood = moodSnap.docs.reduce((sum, doc) => sum + (doc.data().mood || 0), 0);
-      const avgMood = moodSnap.size > 0 ? (totalMood / moodSnap.size).toFixed(1) : 0;
+      // Mood entries (canonical query + JS filtering)
+      const moodSnap = await getDocs(userRecent(db, 'mood_entries', user.uid, 200));
+      const moodDocs = moodSnap.docs.map(d => d.data()).filter(d => {
+        const date = toDate(d.date);
+        return date && date >= startOfMonth;
+      });
+      const totalMood = moodDocs.reduce((sum, doc) => sum + (doc.mood || 0), 0);
+      const avgMood = moodDocs.length > 0 ? (totalMood / moodDocs.length).toFixed(1) : 0;
 
       // Goals
-      const goalsQuery = query(
-        collection(db, 'goals'),
-        where('userId', '==', user.uid),
-        where('status', '==', 'active')
-      );
-      const goalsSnap = await getDocs(goalsQuery);
-      const activeGoals = goalsSnap.size;
+      // Goals (canonical query + JS filtering)
+      const goalsSnap = await getDocs(userRecent(db, 'goals', user.uid, 200));
+      const goalsDocs = goalsSnap.docs.map(d => d.data()).filter(d => d.status === 'active');
+      const activeGoals = goalsDocs.length;
 
       setStats({
         attendancePercentage,
@@ -221,6 +227,8 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        <Leaderboard top={10} />
       </div>
     </Layout>
   );

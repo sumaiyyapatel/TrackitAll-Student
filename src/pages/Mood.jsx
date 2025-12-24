@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Smile, Plus, TrendingUp, Calendar } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,12 +36,7 @@ export default function Mood() {
 
   const loadMoodData = async () => {
     try {
-      const moodQuery = query(
-        collection(db, 'mood_entries'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const moodSnap = await getDocs(moodQuery);
+      const moodSnap = await getDocs(userRecent(db, 'mood_entries', user.uid, 200));
       const moodData = moodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setMoodEntries(moodData);
     } catch (error) {

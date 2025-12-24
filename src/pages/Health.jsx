@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Heart, Plus, Activity, Moon, Utensils, Droplet } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,12 +39,8 @@ export default function Health() {
 
   const loadHealthData = async () => {
     try {
-      const healthQuery = query(
-        collection(db, 'health'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const healthSnap = await getDocs(healthQuery);
+      // Use canonical query and filter as needed client-side
+      const healthSnap = await getDocs(userRecent(db, 'health', user.uid, 200));
       const healthDataArray = healthSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setHealthData(healthDataArray);
     } catch (error) {
@@ -83,14 +80,24 @@ export default function Health() {
     }
   };
 
+  // normalize potential Firestore Timestamp or string date
+  const toDate = (val) => {
+    if (!val) return null;
+    if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
+    return new Date(val);
+  };
+
   const getWeeklyStats = () => {
     const now = new Date();
     const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-    const thisWeek = healthData.filter(entry => new Date(entry.date) >= startOfWeek);
+    const thisWeek = healthData.filter(entry => {
+      const d = toDate(entry.date);
+      return d && d >= startOfWeek;
+    });
     
     return {
       workouts: thisWeek.filter(e => e.type === 'workout').length,
-      avgSleep: (thisWeek.filter(e => e.type === 'sleep').reduce((sum, e) => sum + (e.hours || 0), 0) / thisWeek.filter(e => e.type === 'sleep').length || 0).toFixed(1),
+      avgSleep: (thisWeek.filter(e => e.type === 'sleep').reduce((sum, e) => sum + (e.hours || 0), 0) / (thisWeek.filter(e => e.type === 'sleep').length || 1)).toFixed(1),
       totalCalories: thisWeek.filter(e => e.type === 'workout').reduce((sum, e) => sum + (e.calories || 0), 0)
     };
   };

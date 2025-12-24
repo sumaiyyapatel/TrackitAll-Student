@@ -29,46 +29,60 @@ export default function Social() {
 
   const loadSocialData = async () => {
     try {
-      // Load friends
-      const friendsQuery = query(
-        collection(db, 'friends'),
-        where('status', '==', 'accepted')
-      );
-      const friendsSnap = await getDocs(friendsQuery);
-      const myFriends = friendsSnap.docs
-        .filter(doc => doc.data().user1 === user.uid || doc.data().user2 === user.uid)
-        .map(doc => ({ id: doc.id, ...doc.data() }));
+      // Load friends: query only docs where user is involved (user1 or user2) to respect security rules
+      const friendsQ1 = query(collection(db, 'friends'), where('user1', '==', user.uid));
+      const friendsQ2 = query(collection(db, 'friends'), where('user2', '==', user.uid));
+      const [friendsSnap1, friendsSnap2] = await Promise.all([getDocs(friendsQ1), getDocs(friendsQ2)]);
+      const friendMap = new Map();
+      friendsSnap1.docs.concat(friendsSnap2.docs).forEach(d => {
+        const data = d.data();
+        // only include accepted friendships
+        if (data.status === 'accepted') friendMap.set(d.id, { id: d.id, ...data });
+      });
+      const myFriends = Array.from(friendMap.values());
 
-      // Load friend requests
+      // Load friend requests: query by user2 then filter status client-side to avoid composite index
       const requestsQuery = query(
         collection(db, 'friends'),
-        where('user2', '==', user.uid),
-        where('status', '==', 'pending')
+        where('user2', '==', user.uid)
       );
       const requestsSnap = await getDocs(requestsQuery);
-      const requests = requestsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const requests = requestsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(r => r.status === 'pending');
 
       // Load leaderboard (top users by points)
-      const usersQuery = query(
-        collection(db, 'users'),
-        orderBy('points', 'desc'),
-        limit(20)
-      );
-      const usersSnap = await getDocs(usersQuery);
-      const leaderboardData = usersSnap.docs.map((doc, index) => ({
-        rank: index + 1,
-        uid: doc.id,
-        ...doc.data()
-      }));
+      let leaderboardData = [];
+      try {
+        const usersQuery = query(
+          collection(db, 'users'),
+          orderBy('points', 'desc'),
+          limit(20)
+        );
+        const usersSnap = await getDocs(usersQuery);
+        leaderboardData = usersSnap.docs.map((doc, index) => ({
+          rank: index + 1,
+          uid: doc.id,
+          ...doc.data()
+        }));
+      } catch (err) {
+        // Permission denied for listing users is possible; degrade gracefully
+        console.warn('Could not load leaderboard:', err);
+        leaderboardData = [];
+      }
 
-      // Load activity feed
-      const activitiesQuery = query(
-        collection(db, 'activities'),
-        orderBy('timestamp', 'desc'),
-        limit(20)
-      );
-      const activitiesSnap = await getDocs(activitiesQuery);
-      const activities = activitiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Load activity feed (may be permission-restricted)
+      let activities = [];
+      try {
+        const activitiesQuery = query(
+          collection(db, 'activities'),
+          orderBy('timestamp', 'desc'),
+          limit(20)
+        );
+        const activitiesSnap = await getDocs(activitiesQuery);
+        activities = activitiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } catch (err) {
+        console.warn('Could not load activity feed:', err);
+        activities = [];
+      }
 
       setFriends(myFriends);
       setFriendRequests(requests);
@@ -103,18 +117,22 @@ export default function Social() {
         return;
       }
 
-      // Check if friendship already exists
-      const existingQuery = query(
-        collection(db, 'friends')
-      );
-      const existingSnap = await getDocs(existingQuery);
-      const exists = existingSnap.docs.some(doc => {
-        const data = doc.data();
-        return (
-          (data.user1 === user.uid && data.user2 === targetUser.id) ||
-          (data.user1 === targetUser.id && data.user2 === user.uid)
-        );
+      // Check if friendship already exists by querying only relevant docs (avoid listing entire collection)
+      const existingQ1 = query(collection(db, 'friends'), where('user1', '==', user.uid));
+      const existingSnap1 = await getDocs(existingQ1);
+      const exists1 = existingSnap1.docs.some(d => {
+        const data = d.data();
+        return data.user2 === targetUser.id;
       });
+
+      const existingQ2 = query(collection(db, 'friends'), where('user1', '==', targetUser.id));
+      const existingSnap2 = await getDocs(existingQ2);
+      const exists2 = existingSnap2.docs.some(d => {
+        const data = d.data();
+        return data.user2 === user.uid;
+      });
+
+      const exists = exists1 || exists2;
 
       if (exists) {
         toast.error('Friend request already sent or you are already friends');

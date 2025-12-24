@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Leaderboard: public read, no client writes
+    match /leaderboard/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false; // only server / admin updates
+    }
+
+    // Keep existing rules elsewhere (not included here). Add additional rules
+    // for other collections in your project as needed.
+  }
+}

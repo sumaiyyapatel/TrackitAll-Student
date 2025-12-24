@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Wallet, Plus, TrendingDown, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,12 +47,7 @@ export default function Finance() {
 
   const loadExpenses = async () => {
     try {
-      const expensesQuery = query(
-        collection(db, 'expenses'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const expensesSnap = await getDocs(expensesQuery);
+      const expensesSnap = await getDocs(userRecent(db, 'expenses', user.uid, 200));
       const expensesData = expensesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setExpenses(expensesData);
     } catch (error) {
@@ -101,7 +97,10 @@ export default function Finance() {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     return expenses
-      .filter(exp => new Date(exp.date) >= startOfMonth)
+      .filter(exp => {
+        const d = typeof exp.date === 'object' && exp.date?.toDate ? exp.date.toDate() : new Date(exp.date);
+        return d && d >= startOfMonth;
+      })
       .reduce((sum, exp) => sum + exp.amount, 0);
   };
 
@@ -111,7 +110,10 @@ export default function Finance() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     expenses
-      .filter(exp => new Date(exp.date) >= startOfMonth)
+      .filter(exp => {
+        const d = typeof exp.date === 'object' && exp.date?.toDate ? exp.date.toDate() : new Date(exp.date);
+        return d && d >= startOfMonth;
+      })
       .forEach(exp => {
         categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
       });

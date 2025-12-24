@@ -41,6 +41,12 @@ export default function Challenges() {
     }
   }, [user]);
 
+  const toDate = (val) => {
+    if (!val) return null;
+    if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
+    return new Date(val);
+  };
+
   const loadChallenges = async () => {
     try {
       const challengesQuery = query(
@@ -145,8 +151,14 @@ export default function Challenges() {
     }
   };
 
-  const activeChallenges = challenges.filter(c => c.status === 'active' && new Date(c.endDate) >= new Date());
-  const completedChallenges = challenges.filter(c => c.status === 'completed' || new Date(c.endDate) < new Date());
+  const activeChallenges = challenges.filter(c => {
+    const end = toDate(c.endDate);
+    return c.status === 'active' && end && end >= new Date();
+  });
+  const completedChallenges = challenges.filter(c => {
+    const end = toDate(c.endDate);
+    return c.status === 'completed' || (end && end < new Date());
+  });
 
   if (loading) {
     return (

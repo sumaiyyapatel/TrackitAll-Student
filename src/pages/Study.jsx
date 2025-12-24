@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { BookOpen, Plus, Clock, TrendingUp, GraduationCap, Target, Timer } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,6 +41,12 @@ export default function Study() {
     }
   }, [user]);
 
+  const toDate = (val) => {
+    if (!val) return null;
+    if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
+    return new Date(val);
+  };
+
   useEffect(() => {
     let interval;
     if (pomodoroActive && pomodoroTime > 0) {
@@ -61,21 +68,12 @@ export default function Study() {
   const loadData = async () => {
     try {
       // Load study sessions
-      const sessionsQuery = query(
-        collection(db, 'study_sessions'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const sessionsSnap = await getDocs(sessionsQuery);
+      const sessionsSnap = await getDocs(userRecent(db, 'study_sessions', user.uid, 200));
       const sessionsData = sessionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       // Load exams
-      const examsQuery = query(
-        collection(db, 'exams'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'asc')
-      );
-      const examsSnap = await getDocs(examsQuery);
+      // Use canonical query for exams too, then client-side filter/sort for upcoming (asc)
+      const examsSnap = await getDocs(userRecent(db, 'exams', user.uid, 200));
       const examsData = examsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       setStudySessions(sessionsData);
@@ -145,7 +143,10 @@ export default function Study() {
     const now = new Date();
     const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
     return studySessions
-      .filter(session => new Date(session.date) >= startOfWeek)
+      .filter(session => {
+        const d = toDate(session.date);
+        return d && d >= startOfWeek;
+      })
       .reduce((sum, session) => sum + (session.duration || 0), 0);
   };
 
@@ -156,7 +157,13 @@ export default function Study() {
   };
 
   const weeklyStudyTime = getWeeklyStudyTime();
-  const upcomingExams = exams.filter(exam => new Date(exam.date) >= new Date()).slice(0, 3);
+  const upcomingExams = exams
+    .filter(exam => {
+      const d = toDate(exam.date);
+      return d && d >= new Date();
+    })
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(0, 3);
 
   if (loading) {
     return (
