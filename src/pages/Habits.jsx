@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { CheckCircle2, Circle, Plus, TrendingUp, Calendar as CalendarIcon, Flame } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,13 +41,23 @@ export default function Habits() {
 
   const loadHabits = async () => {
     try {
-      const habitsQuery = query(
-        collection(db, 'habits'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
+      // Note: this collection currently uses `createdAt` for ordering.
+      // We intentionally avoid ordering by createdAt in Firestore to keep queries canonical.
+      // Client-side we sort by createdAt after fetching by userId only. Consider migrating to `date` later.
+      const habitsQuery = query(collection(db, 'habits'), where('userId', '==', user.uid));
       const habitsSnap = await getDocs(habitsQuery);
       const habitsData = habitsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // normalize and sort by createdAt desc (fallback to ensure stable ordering)
+      const toDate = (val) => {
+        if (!val) return null;
+        if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
+        return new Date(val);
+      };
+      habitsData.sort((a, b) => {
+        const da = toDate(a.createdAt) || new Date(0);
+        const dbt = toDate(b.createdAt) || new Date(0);
+        return dbt - da;
+      });
       setHabits(habitsData);
     } catch (error) {
       console.error('Error loading habits:', error);

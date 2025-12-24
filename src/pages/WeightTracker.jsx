@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Scale, Plus, TrendingUp, TrendingDown, Target } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,13 +28,10 @@ export default function WeightTracker() {
 
   const loadWeightData = async () => {
     try {
-      const weightQuery = query(
-        collection(db, 'weight_logs'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'asc')
-      );
-      const weightSnap = await getDocs(weightQuery);
-      const logs = weightSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const weightSnap = await getDocs(userRecent(db, 'weight_logs', user.uid, 200));
+      let logs = weightSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // ensure ascending order by date for charts
+      logs = logs.sort((a, b) => new Date(a.date) - new Date(b.date));
       setWeightLogs(logs);
     } catch (error) {
       console.error('Error loading weight data:', error);

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Droplets, Plus, TrendingUp, Calendar, Award } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
@@ -32,24 +33,22 @@ export default function WaterTracker() {
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
 
-      // Load today's water intake
-      const todayQuery = query(
-        collection(db, 'water_intake'),
-        where('userId', '==', user.uid),
-        where('date', '>=', startOfDay.toISOString())
-      );
-      const todaySnap = await getDocs(todayQuery);
-      const todayTotal = todaySnap.docs.reduce((sum, doc) => sum + (doc.data().glasses || 0), 0);
+      const snap = await getDocs(userRecent(db, 'water_intake', user.uid, 500));
+      const allLogs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Load weekly data
-      const weekQuery = query(
-        collection(db, 'water_intake'),
-        where('userId', '==', user.uid),
-        where('date', '>=', startOfWeek.toISOString()),
-        orderBy('date', 'desc')
-      );
-      const weekSnap = await getDocs(weekQuery);
-      const logs = weekSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Load today's water intake (client-side filter)
+      const todayTotal = allLogs
+        .filter(l => {
+          const d = typeof l.date === 'object' && l.date?.toDate ? l.date.toDate() : new Date(l.date);
+          return d && d >= startOfDay;
+        })
+        .reduce((sum, doc) => sum + (doc.glasses || 0), 0);
+
+      // Weekly logs (client-side filter)
+      const logs = allLogs.filter(l => {
+        const d = typeof l.date === 'object' && l.date?.toDate ? l.date.toDate() : new Date(l.date);
+        return d && d >= startOfWeek;
+      }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
       // Group by day for chart
       const dayMap = {};

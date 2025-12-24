@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Clock, TrendingUp, Calendar, PieChart as PieChartIcon } from 'lucide-react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { userRecent } from '@/utils/canonicalQueries';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { toast } from 'sonner';
 
@@ -31,45 +32,52 @@ export default function TimeAnalytics() {
   const loadTimeData = async () => {
     try {
       const now = new Date();
-      const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      const startOfWeekDate = new Date(now.setDate(now.getDate() - now.getDay()));
 
-      // Load attendance time
-      const attendanceQuery = query(
-        collection(db, 'attendance'),
-        where('userId', '==', user.uid),
-        where('date', '>=', startOfWeek.toISOString())
-      );
-      const attendanceSnap = await getDocs(attendanceQuery);
-      const classTime = attendanceSnap.size * 60; // Assume 1 hour per class
+      const toDate = (val) => {
+        if (!val) return null;
+        if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
+        return new Date(val);
+      };
 
-      // Load study sessions
-      const studyQuery = query(
-        collection(db, 'study_sessions'),
-        where('userId', '==', user.uid),
-        where('date', '>=', startOfWeek.toISOString())
-      );
-      const studySnap = await getDocs(studyQuery);
-      const studyTime = studySnap.docs.reduce((sum, doc) => sum + (doc.data().duration || 0), 0);
+      // Canonical query limit - tune based on expected dataset size
+      const CANONICAL_LIMIT = 500;
 
-      // Load exercise time
-      const exerciseQuery = query(
-        collection(db, 'health'),
-        where('userId', '==', user.uid),
-        where('type', '==', 'workout'),
-        where('date', '>=', startOfWeek.toISOString())
-      );
-      const exerciseSnap = await getDocs(exerciseQuery);
-      const exerciseTime = exerciseSnap.docs.reduce((sum, doc) => sum + (doc.data().duration || 0), 0);
+      // Attendance: fetch canonical set then filter by date client-side
+      const attendanceSnap = await getDocs(userRecent(db, 'attendance', user.uid, CANONICAL_LIMIT));
+      const attendanceDocs = attendanceSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const classTime = attendanceDocs.filter(d => {
+        const dt = toDate(d.date);
+        return dt && dt >= startOfWeekDate;
+      }).length * 60;
 
-      // Load sleep time
-      const sleepQuery = query(
-        collection(db, 'health'),
-        where('userId', '==', user.uid),
-        where('type', '==', 'sleep'),
-        where('date', '>=', startOfWeek.toISOString())
-      );
-      const sleepSnap = await getDocs(sleepQuery);
-      const sleepTime = sleepSnap.docs.reduce((sum, doc) => sum + ((doc.data().hours || 0) * 60), 0);
+      // Study sessions: canonical query then aggregate client-side
+      const studySnap = await getDocs(userRecent(db, 'study_sessions', user.uid, CANONICAL_LIMIT));
+      const studyDocs = studySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const studyTime = studyDocs
+        .filter(d => {
+          const dt = toDate(d.date);
+          return dt && dt >= startOfWeekDate;
+        })
+        .reduce((sum, d) => sum + (d.duration || 0), 0);
+
+      // Health: single canonical query for all types, filter in JS
+      const healthSnap = await getDocs(userRecent(db, 'health', user.uid, CANONICAL_LIMIT));
+      const healthDocs = healthSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const exerciseTime = healthDocs
+        .filter(d => {
+          const dt = toDate(d.date);
+          return dt && dt >= startOfWeekDate && d.type === 'workout';
+        })
+        .reduce((sum, d) => sum + (d.duration || 0), 0);
+
+      const sleepTime = healthDocs
+        .filter(d => {
+          const dt = toDate(d.date);
+          return dt && dt >= startOfWeekDate && d.type === 'sleep';
+        })
+        .reduce((sum, d) => sum + ((d.hours || 0) * 60), 0);
 
       const timeDistribution = [
         { name: 'Classes', value: classTime, color: CATEGORIES.attendance.color },
@@ -78,7 +86,7 @@ export default function TimeAnalytics() {
         { name: 'Sleep', value: sleepTime, color: CATEGORIES.sleep.color }
       ].filter(item => item.value > 0);
 
-      // Weekly breakdown
+      // Weekly breakdown remains client-side (static example preserved)
       const weekly = [
         { day: 'Mon', classes: 2, study: 3, exercise: 1 },
         { day: 'Tue', classes: 3, study: 2, exercise: 1 },
