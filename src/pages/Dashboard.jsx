@@ -119,10 +119,10 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div data-testid="dashboard-header">
-          <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
             {getGreeting()}, {user?.displayName?.split(' ')[0] || 'Student'}! 👋
           </h1>
-          <p className="text-slate-400">Here's what's happening with your goals today</p>
+          <p className="text-sm sm:text-base text-slate-400">Here's what's happening with your goals today</p>
         </div>
 
         {/* Level Progress */}
@@ -155,8 +155,8 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         <div>
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>This Month Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>This Month Overview</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
             <StatCard
               title="Attendance Rate"
               value={`${stats.attendancePercentage}%`}
@@ -211,8 +211,8 @@ export default function Dashboard() {
         {/* Recent Badges */}
         {userStats.badges.length > 0 && (
           <div>
-            <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Achievements</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Achievements</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {userStats.badges.slice(-4).reverse().map((badge, index) => (
                 <div
                   key={index}
