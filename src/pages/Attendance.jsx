@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Calendar, Plus, Check, X, TrendingUp, AlertCircle } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
@@ -40,8 +40,12 @@ export default function Attendance() {
       const coursesSnap = await getDocs(coursesQuery);
       const coursesData = coursesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Load attendance (canonical query + JS filtering if needed)
-      const attendanceSnap = await getDocs(userRecent(db, 'attendance', user.uid, 500));
+      // Load attendance explicitly by userId to avoid relying on helpers
+      const attendanceQuery = query(
+        collection(db, 'attendance'),
+        where('userId', '==', user.uid)
+      );
+      const attendanceSnap = await getDocs(attendanceQuery);
       const attendanceData = attendanceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       setCourses(coursesData);
@@ -60,7 +64,7 @@ export default function Attendance() {
       await addDoc(collection(db, 'courses'), {
         ...newCourse,
         userId: user.uid,
-        createdAt: new Date().toISOString()
+        createdAt: serverTimestamp()
       });
       toast.success('Course added successfully!');
       setShowAddCourse(false);
