@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Wallet, Plus, TrendingDown, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/utils/helpers';
+import { normalizeDate } from '@/utils/dateNormalizer';
 import { POINTS } from '@/utils/gamification';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { expenseSchema, validateFormData, sanitizeInput } from '@/utils/validation';
@@ -38,6 +39,7 @@ export default function Finance() {
     category: 'Food',
     description: ''
   });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -60,6 +62,8 @@ export default function Finance() {
 
   const handleAddExpense = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     const validation = validateFormData(
       {
         amount: parseFloat(newExpense.amount),
@@ -79,7 +83,7 @@ export default function Finance() {
       await addDoc(collection(db, 'expenses'), {
         ...newExpense,
         amount: parseFloat(newExpense.amount),
-        date: new Date().toISOString(),
+        date: serverTimestamp(),
         userId: user.uid
       });
       addPoints(POINTS.LOG_EXPENSE);
@@ -90,6 +94,8 @@ export default function Finance() {
     } catch (error) {
       console.error('Error adding expense:', error);
       toast.error('Failed to add expense');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -98,9 +104,9 @@ export default function Finance() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     return expenses
       .filter(exp => {
-        const d = typeof exp.date === 'object' && exp.date?.toDate ? exp.date.toDate() : new Date(exp.date);
-        return d && d >= startOfMonth;
-      })
+          const d = normalizeDate(exp.date);
+          return d && d >= startOfMonth;
+        })
       .reduce((sum, exp) => sum + exp.amount, 0);
   };
 
@@ -111,9 +117,9 @@ export default function Finance() {
 
     expenses
       .filter(exp => {
-        const d = typeof exp.date === 'object' && exp.date?.toDate ? exp.date.toDate() : new Date(exp.date);
-        return d && d >= startOfMonth;
-      })
+          const d = normalizeDate(exp.date);
+          return d && d >= startOfMonth;
+        })
       .forEach(exp => {
         categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
       });
@@ -157,7 +163,7 @@ export default function Finance() {
                 Add Expense
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Log Expense</DialogTitle>
               </DialogHeader>
@@ -198,8 +204,8 @@ export default function Finance() {
                     className="bg-slate-950 border-slate-800 text-slate-200"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-500">
-                  Log Expense
+                <Button type="submit" disabled={submitting} className="w-full bg-amber-600 hover:bg-amber-500">
+                  {submitting ? 'Adding...' : 'Log Expense'}
                 </Button>
               </form>
             </DialogContent>
@@ -321,7 +327,7 @@ export default function Finance() {
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Transactions</h2>
           {expenses.length === 0 ? (
             <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-              <Wallet className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <Wallet className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No expenses logged yet</h3>
               <p className="text-slate-500 mb-6">Start tracking your spending to see insights</p>
               <Button onClick={() => setShowAddExpense(true)} className="bg-amber-600 hover:bg-amber-500">

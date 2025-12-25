@@ -6,6 +6,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { normalizeDate } from '@/utils/dateNormalizer';
 import { toast } from 'sonner';
 
 const CATEGORIES = {
@@ -34,11 +35,7 @@ export default function TimeAnalytics() {
       const now = new Date();
       const startOfWeekDate = new Date(now.setDate(now.getDate() - now.getDay()));
 
-      const toDate = (val) => {
-        if (!val) return null;
-        if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
-        return new Date(val);
-      };
+      const toDate = normalizeDate;
 
       // Canonical query limit - tune based on expected dataset size
       const CANONICAL_LIMIT = 500;
@@ -193,7 +190,7 @@ export default function TimeAnalytics() {
             <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Time Distribution</h2>
             {timeData.length === 0 ? (
               <div className="text-center py-12">
-                <PieChartIcon className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+                <PieChartIcon className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
                 <p className="text-slate-400">No time data available</p>
                 <p className="text-sm text-slate-500 mt-2">Start tracking your activities to see insights</p>
               </div>

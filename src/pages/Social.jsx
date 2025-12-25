@@ -196,7 +196,7 @@ export default function Social() {
                 Add Friend
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Add Friend</DialogTitle>
                 <DialogDescription className="sr-only">
@@ -313,7 +313,7 @@ export default function Social() {
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Your Friends</h2>
           {friends.length === 0 ? (
             <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-              <Users className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <Users className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No friends yet</h3>
               <p className="text-slate-500 mb-6">Add friends to compete and motivate each other</p>
               <Button onClick={() => setShowAddFriend(true)} className="bg-violet-600 hover:bg-violet-500">

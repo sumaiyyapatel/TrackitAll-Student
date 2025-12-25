@@ -27,7 +27,7 @@ class ErrorBoundary extends React.Component {
         <Layout>
           <div className="max-w-2xl mx-auto">
             <div className="bg-slate-900/50 backdrop-blur-md border border-rose-500/20 rounded-2xl p-8 text-center">
-              <AlertCircle className="w-16 h-16 mx-auto text-rose-400 mb-4" />
+              <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-rose-400 mb-4" />
               <h1 className="text-3xl font-bold mb-4 text-slate-200" style={{ fontFamily: 'Outfit, sans-serif' }}>
                 Oops! Something went wrong
               </h1>

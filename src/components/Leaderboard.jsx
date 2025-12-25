@@ -34,62 +34,46 @@ const Leaderboard = ({ top = 10 }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [top]);
 
-  if (loading) {
-    return (
-      <div className="p-3 bg-white rounded shadow-sm">
-        <div className="text-sm text-muted">Loading leaderboard…</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-3 bg-yellow-50 rounded border border-yellow-100">
-        <div className="font-medium">Leaderboard unavailable</div>
-        <div className="text-sm mt-1">{error}</div>
-        <div className="mt-2">
-          <button
-            onClick={load}
-            className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!items || items.length === 0) {
-    return (
-      <div className="p-3 bg-white rounded shadow-sm">
-        <div className="font-medium">No leaderboard entries yet</div>
-        <div className="text-sm mt-1">Be the first to earn points!</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-3 bg-white rounded shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold">Leaderboard</h3>
-        <span className="text-xs text-gray-500">Top {top}</span>
+    <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-100">Leaderboard</h3>
+          <p className="text-xs text-slate-400">Top {top} users</p>
+        </div>
+        <div className="text-sm text-slate-300">🔥</div>
       </div>
-      <ol className="list-decimal list-inside space-y-2">
-        {items.map((u, i) => (
-          <li key={u.id} className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm text-gray-700">
-                {i + 1}
+
+      {loading ? (
+        <div className="text-sm text-slate-400">📊 Loading leaderboard...</div>
+      ) : error ? (
+        <div className="p-3 bg-amber-900/20 rounded border border-amber-800">
+          <div className="font-medium text-amber-200">Leaderboard unavailable</div>
+          <div className="text-sm mt-1 text-amber-200">{error}</div>
+          <div className="mt-2">
+            <button onClick={load} className="px-3 py-1 bg-violet-600 text-white rounded text-sm">Try again</button>
+          </div>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="text-sm text-slate-400">🏆 Leaderboard coming soon! Be active to appear here.</div>
+      ) : (
+        <ol className="space-y-3">
+          {items.map((u, i) => (
+            <li key={u.id} className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-600 to-pink-500 flex items-center justify-center text-sm font-semibold text-white">
+                  {i + 1}
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-100">{u.displayName || u.name || u.userId || u.id}</div>
+                  {u.tagline ? <div className="text-xs text-slate-400">{u.tagline}</div> : null}
+                </div>
               </div>
-              <div>
-                <div className="text-sm font-medium">{u.displayName || u.name || u.userId || u.id}</div>
-                {u.tagline ? <div className="text-xs text-gray-500">{u.tagline}</div> : null}
-              </div>
-            </div>
-            <div className="text-sm font-semibold">{u.points ?? 0}</div>
-          </li>
-        ))}
-      </ol>
+              <div className="text-sm font-semibold text-amber-300">{u.points ?? 0}</div>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 };

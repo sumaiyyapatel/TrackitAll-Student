@@ -7,6 +7,7 @@ import { Calendar, Wallet, Heart, Smile, Trophy, TrendingUp } from 'lucide-react
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
+import { normalizeDate } from '@/utils/dateNormalizer';
 import { formatCurrency, getGreeting } from '@/utils/helpers';
 import { Progress } from '@/components/ui/progress';
 import Leaderboard from '../components/Leaderboard';
@@ -34,14 +35,7 @@ export default function Dashboard() {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
 
-      // helper to normalize Firestore Timestamp / Date / string
-      const toDate = (val) => {
-        if (!val) return null;
-        // Firestore Timestamp
-        if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
-        // ISO string or number
-        return new Date(val);
-      };
+      const toDate = normalizeDate;
 
       // Attendance (use canonical query + JS filtering)
       const attendanceSnap = await getDocs(userRecent(db, 'attendance', user.uid, 200));
@@ -50,8 +44,7 @@ export default function Dashboard() {
         return date && date >= startOfMonth;
       });
       const attendedCount = attendanceDocs.filter(d => d.attended).length;
-      const totalCount = attendanceDocs.length || 1;
-      const attendancePercentage = Math.round((attendedCount / totalCount) * 100);
+      const attendancePercentage = attendanceDocs.length === 0 ? null : Math.round((attendedCount / attendanceDocs.length) * 100);
 
       // Expenses
       // Expenses (canonical query + JS filtering)
@@ -104,11 +97,13 @@ export default function Dashboard() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-slate-400">Loading your dashboard...</p>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-3/4 mb-3" /><div className="h-8 bg-slate-700 rounded w-full" /></div>
+            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-3/4 mb-3" /><div className="h-8 bg-slate-700 rounded w-full" /></div>
+            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-3/4 mb-3" /><div className="h-8 bg-slate-700 rounded w-full" /></div>
           </div>
+          <div className="p-6 bg-slate-800 rounded-2xl max-w-7xl mx-auto text-slate-400">Loading your dashboard...</div>
         </div>
       </Layout>
     );
@@ -156,10 +151,10 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div>
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>This Month Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
             <StatCard
               title="Attendance Rate"
-              value={`${stats.attendancePercentage}%`}
+              value={stats.attendancePercentage === null ? 'N/A' : `${stats.attendancePercentage}%`}
               icon={Calendar}
               color="violet"
               trend="up"

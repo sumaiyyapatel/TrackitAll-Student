@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware';
 import { db } from '@/firebase/config';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
+// internal update queue to serialize async updates (prevents races when addPoints is called rapidly)
+let _updateQueue = Promise.resolve();
+
 const useStore = create(
   persist(
     (set, get) => ({
@@ -21,51 +24,57 @@ const useStore = create(
       setUserStats: (stats) => set({ userStats: stats }),
       
       // Updated to use setDoc with merge instead of updateDoc
-      addPoints: async (points) => {
-        const state = get();
-        const newPoints = state.userStats.points + points;
-        const newLevel = Math.min(Math.floor(newPoints / 100) + 1, 50);
-        
-        const newStats = {
-          ...state.userStats,
-          points: newPoints,
-          level: newLevel
-        };
-        
-        set({ userStats: newStats });
-        
-        // Persist to Firestore - use setDoc with merge to create if not exists
-        if (state.user?.uid) {
-          try {
-            const userRef = doc(db, 'users', state.user.uid);
-            
-            // First check if document exists
-            const docSnap = await getDoc(userRef);
-            
-            if (!docSnap.exists()) {
-              // Create the document first
-              await setDoc(userRef, {
-                uid: state.user.uid,
-                email: state.user.email,
-                displayName: state.user.displayName || state.user.email?.split('@')[0],
-                photoURL: state.user.photoURL,
-                createdAt: new Date().toISOString(),
-                points: newPoints,
-                level: newLevel,
-                badges: state.userStats.badges || [],
-                streaks: state.userStats.streaks || { attendance: 0, mood: 0, health: 0 }
-              });
-            } else {
-              // Document exists, update it
-              await setDoc(userRef, {
-                points: newPoints,
-                level: newLevel
-              }, { merge: true });
+      addPoints: (points) => {
+        // Chain updates onto the internal _updateQueue so multiple calls serialize
+        _updateQueue = _updateQueue.then(async () => {
+          const state = get();
+          const oldStats = state.userStats;
+          const newPoints = (oldStats.points || 0) + points;
+          const newLevel = Math.min(Math.floor(newPoints / 100) + 1, 50);
+
+          const newStats = {
+            ...oldStats,
+            points: newPoints,
+            level: newLevel
+          };
+
+          // Optimistically update UI
+          set({ userStats: newStats });
+
+          if (state.user?.uid) {
+            try {
+              const userRef = doc(db, 'users', state.user.uid);
+              const docSnap = await getDoc(userRef);
+
+              if (!docSnap.exists()) {
+                await setDoc(userRef, {
+                  uid: state.user.uid,
+                  email: state.user.email,
+                  displayName: state.user.displayName || state.user.email?.split('@')[0],
+                  photoURL: state.user.photoURL,
+                  createdAt: new Date().toISOString(),
+                  points: newPoints,
+                  level: newLevel,
+                  badges: state.userStats.badges || [],
+                  streaks: state.userStats.streaks || { attendance: 0, mood: 0, health: 0 }
+                });
+              } else {
+                await setDoc(userRef, {
+                  points: newPoints,
+                  level: newLevel
+                }, { merge: true });
+              }
+            } catch (error) {
+              console.error('Error saving points:', error);
+              // revert optimistic update on error
+              set({ userStats: oldStats });
             }
-          } catch (error) {
-            console.error('Error saving points to Firestore:', error);
           }
-        }
+        }).catch(err => {
+          console.error('Queue error in addPoints:', err);
+        });
+
+        return _updateQueue;
       },
       
       addBadge: async (badge) => {

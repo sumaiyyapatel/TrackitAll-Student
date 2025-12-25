@@ -162,7 +162,7 @@ export default function Profile() {
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Achievements</h2>
           {userStats.badges.length === 0 ? (
             <div className="text-center py-12 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-              <Trophy className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <Trophy className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <p className="text-slate-400">No badges earned yet. Keep logging data to unlock achievements!</p>
             </div>
           ) : (
