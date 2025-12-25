@@ -5,6 +5,7 @@ import { Droplets, Plus, TrendingUp, Calendar, Award } from 'lucide-react';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
+import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
@@ -31,7 +32,18 @@ export default function WaterTracker() {
     try {
       const now = new Date();
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      const getStartOfWeek = (date = new Date(), startDay = 1) => {
+        const d = new Date(date);
+        // normalize to local midnight
+        d.setHours(0,0,0,0);
+        const day = d.getDay(); // 0=Sun
+        // If startDay is Monday (1), compute diff
+        const diff = d.getDate() - day + (startDay === 0 ? 0 : (day === 0 ? -6 : 1));
+        const res = new Date(d.setDate(diff));
+        res.setHours(0,0,0,0);
+        return res;
+      };
+      const startOfWeek = getStartOfWeek(now, 1);
 
       const snap = await getDocs(userRecent(db, 'water_intake', user.uid, 500));
       const allLogs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -39,21 +51,22 @@ export default function WaterTracker() {
       // Load today's water intake (client-side filter)
       const todayTotal = allLogs
         .filter(l => {
-          const d = typeof l.date === 'object' && l.date?.toDate ? l.date.toDate() : new Date(l.date);
+          const d = normalizeDate(l.date);
           return d && d >= startOfDay;
         })
         .reduce((sum, doc) => sum + (doc.glasses || 0), 0);
 
       // Weekly logs (client-side filter)
       const logs = allLogs.filter(l => {
-        const d = typeof l.date === 'object' && l.date?.toDate ? l.date.toDate() : new Date(l.date);
+        const d = normalizeDate(l.date);
         return d && d >= startOfWeek;
-      }).sort((a, b) => new Date(b.date) - new Date(a.date));
+      }).sort((a, b) => normalizeDate(b.date) - normalizeDate(a.date));
 
       // Group by day for chart
       const dayMap = {};
       logs.forEach(log => {
-        const day = new Date(log.date).toLocaleDateString('en-US', { weekday: 'short' });
+        const d = normalizeDate(log.date) || new Date();
+        const day = d.toLocaleDateString('en-US', { weekday: 'short' });
         dayMap[day] = (dayMap[day] || 0) + (log.glasses || 0);
       });
 
@@ -138,7 +151,7 @@ export default function WaterTracker() {
             <Button
               data-testid="add-water-glass"
               onClick={handleAddGlass}
-              className="bg-cyan-600 hover:bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)] px-8 py-6 text-lg"
+              className="bg-cyan-600 hover:bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)] px-4 sm:px-8 py-3 sm:py-6 text-base sm:text-lg"
             >
               <Plus className="w-6 h-6 mr-2" />
               Add Glass

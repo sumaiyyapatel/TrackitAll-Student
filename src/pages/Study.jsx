@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { calculateDaysRemaining, formatDate } from '@/utils/helpers';
+import { normalizeDate } from '@/utils/dateNormalizer';
 import { POINTS } from '@/utils/gamification';
 
 export default function Study() {
@@ -41,11 +42,7 @@ export default function Study() {
     }
   }, [user]);
 
-  const toDate = (val) => {
-    if (!val) return null;
-    if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
-    return new Date(val);
-  };
+  const toDate = normalizeDate;
 
   useEffect(() => {
     let interval;
@@ -162,7 +159,7 @@ export default function Study() {
       const d = toDate(exam.date);
       return d && d >= new Date();
     })
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .sort((a, b) => toDate(a.date) - toDate(b.date))
     .slice(0, 3);
 
   if (loading) {
@@ -277,7 +274,7 @@ export default function Study() {
                     Log Session
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-slate-900 border-white/10">
+                <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="text-slate-200">Log Study Session</DialogTitle>
                   </DialogHeader>
@@ -322,8 +319,8 @@ export default function Study() {
             </div>
 
             {studySessions.length === 0 ? (
-              <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-                <BookOpen className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+        <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
+          <BookOpen className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
                 <h3 className="text-xl font-semibold mb-2 text-slate-400">No study sessions yet</h3>
                 <p className="text-slate-500 mb-6">Start logging your study time</p>
                 <Button onClick={() => setShowAddSession(true)} className="bg-violet-600 hover:bg-violet-500">
@@ -367,7 +364,7 @@ export default function Study() {
                     Add Exam
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-slate-900 border-white/10">
+                <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="text-slate-200">Add Exam</DialogTitle>
                   </DialogHeader>
@@ -412,7 +409,7 @@ export default function Study() {
 
             {upcomingExams.length === 0 ? (
               <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-                <GraduationCap className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+                <GraduationCap className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
                 <h3 className="text-xl font-semibold mb-2 text-slate-400">No upcoming exams</h3>
                 <p className="text-slate-500 mb-6">Add your exam schedule</p>
                 <Button onClick={() => setShowAddExam(true)} className="bg-amber-600 hover:bg-amber-500">

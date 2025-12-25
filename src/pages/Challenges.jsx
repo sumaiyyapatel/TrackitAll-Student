@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { calculateDaysRemaining, formatDate } from '@/utils/helpers';
+import { normalizeDate } from '@/utils/dateNormalizer';
 import { POINTS } from '@/utils/gamification';
 
 const CHALLENGE_TYPES = [
@@ -41,11 +42,7 @@ export default function Challenges() {
     }
   }, [user]);
 
-  const toDate = (val) => {
-    if (!val) return null;
-    if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
-    return new Date(val);
-  };
+  const toDate = normalizeDate;
 
   const loadChallenges = async () => {
     try {
@@ -186,7 +183,7 @@ export default function Challenges() {
                 Create Challenge
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Create New Challenge</DialogTitle>
               </DialogHeader>
@@ -302,7 +299,7 @@ export default function Challenges() {
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Active Challenges</h2>
           {activeChallenges.length === 0 ? (
             <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-12 text-center">
-              <Trophy className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <Trophy className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No active challenges</h3>
               <p className="text-slate-500 mb-6">Create a challenge to compete with friends</p>
               <Button onClick={() => setShowCreate(true)} className="bg-amber-600 hover:bg-amber-500">

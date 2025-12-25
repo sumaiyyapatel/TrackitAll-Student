@@ -104,7 +104,7 @@ export default function WeightTracker() {
                 Log Weight
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Log Weight</DialogTitle>
               </DialogHeader>
@@ -212,7 +212,7 @@ export default function WeightTracker() {
           </div>
         ) : (
           <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-12 text-center">
-            <Scale className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <Scale className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
             <h3 className="text-xl font-semibold mb-2 text-slate-400">No weight logs yet</h3>
             <p className="text-slate-500 mb-6">Start tracking your weight journey</p>
             <Button onClick={() => setShowAdd(true)} className="bg-violet-600 hover:bg-violet-500">

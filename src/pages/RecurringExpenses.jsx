@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { RefreshCw, Plus, Calendar, Trash2, Edit2 } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ export default function RecurringExpenses() {
   });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -71,12 +72,14 @@ export default function RecurringExpenses() {
 
   const handleAddRecurring = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await addDoc(collection(db, 'recurring_expenses'), {
         ...newRecurring,
         amount: parseFloat(newRecurring.amount),
         userId: user.uid,
-        createdAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
         lastProcessed: null
       });
       toast.success('Recurring expense added!');
@@ -86,6 +89,8 @@ export default function RecurringExpenses() {
     } catch (error) {
       console.error('Error adding recurring expense:', error);
       toast.error('Failed to add recurring expense');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -97,6 +102,8 @@ export default function RecurringExpenses() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const payload = {
         name: newRecurring.name,
@@ -115,7 +122,7 @@ export default function RecurringExpenses() {
         // add new
         await addDoc(collection(db, 'recurring_expenses'), {
           ...payload,
-          createdAt: new Date().toISOString(),
+          createdAt: serverTimestamp(),
           lastProcessed: null
         });
         toast.success('Recurring expense added!');
@@ -126,12 +133,19 @@ export default function RecurringExpenses() {
     } catch (error) {
       console.error('Error saving recurring expense:', error);
       toast.error('Failed to save recurring expense');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (id) => {
     const itemToDelete = recurring.find(r => r.id === id);
     if (!itemToDelete) return;
+
+    // Confirm destructive action before proceeding
+    if (!window.confirm('Are you sure you want to delete this recurring expense? This action can be undone for a short time.')) {
+      return;
+    }
 
     // Optimistic update: remove from UI immediately
     setRecurring(prev => prev.filter(r => r.id !== id));
@@ -200,8 +214,9 @@ export default function RecurringExpenses() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
+        <div className="space-y-4 max-w-5xl mx-auto">
+          <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/3 mb-3" /><div className="h-24 bg-slate-700 rounded" /></div>
+          <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/3 mb-3" /><div className="h-24 bg-slate-700 rounded" /></div>
         </div>
       </Layout>
     );
@@ -223,7 +238,7 @@ export default function RecurringExpenses() {
                 Add Recurring
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Add Recurring Expense</DialogTitle>
               </DialogHeader>
@@ -288,8 +303,8 @@ export default function RecurringExpenses() {
                   />
                 </div>
                 <div className="flex gap-3">
-                  <Button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-500">
-                    {editingId ? 'Update' : 'Create'}
+                  <Button type="submit" disabled={submitting} className="flex-1 bg-amber-600 hover:bg-amber-500">
+                    {submitting ? (editingId ? 'Updating...' : 'Creating...') : (editingId ? 'Update' : 'Create')}
                   </Button>
                   <Button type="button" onClick={resetForm} className="flex-1 bg-slate-700">
                     Cancel
@@ -336,7 +351,7 @@ export default function RecurringExpenses() {
         {/* Recurring List */}
         {recurring.length === 0 ? (
           <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-12 text-center">
-            <RefreshCw className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+            <RefreshCw className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
             <h3 className="text-xl font-semibold mb-2 text-slate-400">No recurring expenses</h3>
             <p className="text-slate-500 mb-6">Add subscriptions and bills to track automatically</p>
             <Button onClick={() => setShowAdd(true)} className="bg-amber-600 hover:bg-amber-500">
@@ -362,7 +377,7 @@ export default function RecurringExpenses() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                        <h3 className="text-xl font-bold truncate" title={exp.name} style={{ fontFamily: 'Outfit, sans-serif' }}>
                           {exp.name}
                         </h3>
                         <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-medium">

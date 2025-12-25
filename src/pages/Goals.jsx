@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { calculateDaysRemaining, getGoalProgress, formatDate } from '@/utils/helpers';
 import { POINTS } from '@/utils/gamification';
+import InlineEditable from '@/components/InlineEditable';
 
 const CATEGORIES = ['Health', 'Finance', 'Academic', 'Personal', 'Career'];
 
@@ -100,6 +101,25 @@ export default function Goals() {
     }
   };
 
+  const handleSaveGoalField = async (goalId, field, newValue) => {
+    try {
+      const goalRef = doc(db, 'goals', goalId);
+      const payload = {};
+      if (field === 'targetValue') {
+        payload[field] = parseFloat(newValue) || 0;
+      } else {
+        payload[field] = newValue;
+      }
+      await updateDoc(goalRef, payload);
+      toast.success('Goal updated');
+      loadGoals();
+    } catch (error) {
+      console.error('Error saving goal field:', error);
+      toast.error('Failed to save');
+      throw error; // rethrow so InlineEditable can show its toast if needed
+    }
+  };
+
   const activeGoals = goals.filter(g => g.status === 'active');
   const completedGoals = goals.filter(g => g.status === 'completed');
 
@@ -132,7 +152,7 @@ export default function Goals() {
                 Create Goal
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Create New Goal</DialogTitle>
               </DialogHeader>
@@ -250,7 +270,7 @@ export default function Goals() {
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Active Goals</h2>
           {activeGoals.length === 0 ? (
             <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-              <Target className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <Target className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No active goals</h3>
               <p className="text-slate-500 mb-6">Create your first goal and start achieving</p>
               <Button onClick={() => setShowAdd(true)} className="bg-emerald-600 hover:bg-emerald-500">
@@ -275,7 +295,10 @@ export default function Goals() {
                           {goal.category}
                         </span>
                         <h3 className="text-xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          {goal.title}
+                          <InlineEditable
+                            value={goal.title}
+                            onSave={(val) => handleSaveGoalField(goal.id, 'title', val)}
+                          />
                         </h3>
                         {goal.description && (
                           <p className="text-sm text-slate-400">{goal.description}</p>

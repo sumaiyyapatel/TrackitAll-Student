@@ -5,6 +5,7 @@ import { Calendar, Plus, Check, X, TrendingUp, AlertCircle } from 'lucide-react'
 import { collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
+import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,8 @@ export default function Attendance() {
   const [showMarkAttendance, setShowMarkAttendance] = useState(false);
   const [newCourse, setNewCourse] = useState({ name: '', code: '', totalLectures: 40 });
   const [selectedCourse, setSelectedCourse] = useState('');
+  const [submittingAddCourse, setSubmittingAddCourse] = useState(false);
+  const [submittingMark, setSubmittingMark] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -46,7 +49,10 @@ export default function Attendance() {
         where('userId', '==', user.uid)
       );
       const attendanceSnap = await getDocs(attendanceQuery);
-      const attendanceData = attendanceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const attendanceData = attendanceSnap.docs.map(doc => {
+        const d = doc.data();
+        return { id: doc.id, ...d, date: normalizeDate(d.date) };
+      });
 
       setCourses(coursesData);
       setAttendanceRecords(attendanceData);
@@ -60,6 +66,8 @@ export default function Attendance() {
 
   const handleAddCourse = async (e) => {
     e.preventDefault();
+    if (submittingAddCourse) return;
+    setSubmittingAddCourse(true);
     try {
       await addDoc(collection(db, 'courses'), {
         ...newCourse,
@@ -69,15 +77,19 @@ export default function Attendance() {
       toast.success('Course added successfully!');
       setShowAddCourse(false);
       setNewCourse({ name: '', code: '', totalLectures: 40 });
-      loadData();
+      await loadData();
     } catch (error) {
       console.error('Error adding course:', error);
       toast.error('Failed to add course');
+    } finally {
+      setSubmittingAddCourse(false);
     }
   };
 
   const handleMarkAttendance = async (e) => {
     e.preventDefault();
+    if (submittingMark) return;
+    setSubmittingMark(true);
     try {
       await addDoc(collection(db, 'attendance'), {
         courseId: selectedCourse,
@@ -90,10 +102,12 @@ export default function Attendance() {
       toast.success(`+${POINTS.MARK_ATTENDANCE} XP! Attendance marked`);
       setShowMarkAttendance(false);
       setSelectedCourse('');
-      loadData();
+      await loadData();
     } catch (error) {
       console.error('Error marking attendance:', error);
       toast.error('Failed to mark attendance');
+    } finally {
+      setSubmittingMark(false);
     }
   };
 
@@ -108,8 +122,12 @@ export default function Attendance() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/2 mb-3" /><div className="h-32 bg-slate-700 rounded" /></div>
+            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/2 mb-3" /><div className="h-32 bg-slate-700 rounded" /></div>
+            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/2 mb-3" /><div className="h-32 bg-slate-700 rounded" /></div>
+          </div>
         </div>
       </Layout>
     );
@@ -135,7 +153,7 @@ export default function Attendance() {
                   Mark Attendance
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-slate-900 border-white/10">
+              <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-slate-200">Mark Attendance</DialogTitle>
                   <DialogDescription className="sr-only">
@@ -158,8 +176,8 @@ export default function Attendance() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button type="submit" className="w-full bg-violet-600 hover:bg-violet-500">
-                    Mark Present
+                  <Button type="submit" disabled={submittingMark} className="w-full bg-violet-600 hover:bg-violet-500">
+                    {submittingMark ? 'Marking...' : 'Mark Present'}
                   </Button>
                 </form>
               </DialogContent>
@@ -172,7 +190,7 @@ export default function Attendance() {
                   Add Course
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-slate-900 border-white/10">
+              <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-slate-200">Add New Course</DialogTitle>
                   <DialogDescription className="sr-only">
@@ -213,8 +231,8 @@ export default function Attendance() {
                       className="bg-slate-950 border-slate-800 text-slate-200"
                     />
                   </div>
-                  <Button type="submit" className="w-full bg-violet-600 hover:bg-violet-500">
-                    Add Course
+                  <Button type="submit" disabled={submittingAddCourse} className="w-full bg-violet-600 hover:bg-violet-500">
+                    {submittingAddCourse ? 'Adding...' : 'Add Course'}
                   </Button>
                 </form>
               </DialogContent>
@@ -225,7 +243,7 @@ export default function Attendance() {
         {/* Courses Grid */}
         {courses.length === 0 ? (
           <div className="text-center py-20">
-            <Calendar className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+            <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
             <h3 className="text-xl font-semibold mb-2 text-slate-400">No courses added yet</h3>
             <p className="text-slate-500 mb-6">Add your first course to start tracking attendance</p>
             <Button onClick={() => setShowAddCourse(true)} className="bg-violet-600 hover:bg-violet-500">
@@ -245,9 +263,9 @@ export default function Attendance() {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h3 className="font-bold text-lg mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                        {course.name}
-                      </h3>
+                        <h3 className="font-bold text-lg mb-1 truncate" title={course.name} style={{ fontFamily: 'Outfit, sans-serif' }}>
+                          {course.name}
+                        </h3>
                       <p className="text-sm text-slate-500">{course.code}</p>
                     </div>
                     <div className={`text-3xl font-bold ${getAttendanceColor(stats.percentage)}`}>

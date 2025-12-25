@@ -4,6 +4,7 @@ import useStore from '@/store/useStore';
 import { CheckCircle2, Circle, Plus, TrendingUp, Calendar as CalendarIcon, Flame } from 'lucide-react';
 import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,14 +49,9 @@ export default function Habits() {
       const habitsSnap = await getDocs(habitsQuery);
       const habitsData = habitsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       // normalize and sort by createdAt desc (fallback to ensure stable ordering)
-      const toDate = (val) => {
-        if (!val) return null;
-        if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
-        return new Date(val);
-      };
       habitsData.sort((a, b) => {
-        const da = toDate(a.createdAt) || new Date(0);
-        const dbt = toDate(b.createdAt) || new Date(0);
+        const da = normalizeDate(a.createdAt) || new Date(0);
+        const dbt = normalizeDate(b.createdAt) || new Date(0);
         return dbt - da;
       });
       setHabits(habitsData);
@@ -92,6 +88,24 @@ export default function Habits() {
   const handleToggleCompletion = async (habitId, date) => {
     try {
       const habit = habits.find(h => h.id === habitId);
+      // validate whether this date is allowed for the habit's frequency
+      const isDateValidForHabit = (d, habitObj) => {
+        const dayOfWeek = d.getDay(); // 0=Sun,1=Mon
+        switch (habitObj.frequency) {
+          case 'daily': return true;
+          case 'weekdays': return dayOfWeek !== 0 && dayOfWeek !== 6;
+          case 'weekly': return dayOfWeek === 1; // Monday
+          case '3x_week': return [1,3,5].includes(dayOfWeek); // Mon, Wed, Fri
+          case 'custom': return habitObj.daysSelected?.includes(dayOfWeek);
+          default: return true;
+        }
+      };
+
+      if (!isDateValidForHabit(date, habit)) {
+        toast.error(`This habit is not scheduled for ${date.toLocaleDateString()}`);
+        return;
+      }
+
       const dateKey = date.toISOString().split('T')[0];
       const completions = habit.completions || {};
       const isCompleted = completions[dateKey];
@@ -104,21 +118,37 @@ export default function Habits() {
         addPoints(POINTS.DAILY_STREAK);
       }
 
-      // Calculate streak
-      const sortedDates = Object.keys(updatedCompletions).sort().reverse();
-      let currentStreak = 0;
-      let checkDate = new Date();
-      
-      for (let i = 0; i < 30; i++) {
-        const key = checkDate.toISOString().split('T')[0];
-        if (updatedCompletions[key]) {
-          currentStreak++;
-        } else {
-          break;
-        }
-        checkDate.setDate(checkDate.getDate() - 1);
-      }
+      // Calculate streak with local-date awareness
+      const calculateStreak = (completionsObj) => {
+        if (!completionsObj || Object.keys(completionsObj).length === 0) return 0;
+        let currentStreak = 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
+        const dateKeyFn = (d) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
+        for (let i = 0; i < 365; i++) {
+          const check = new Date(today);
+          check.setDate(check.getDate() - i);
+          const key = dateKeyFn(check);
+          if (completionsObj[key]) {
+            currentStreak++;
+          } else if (i === 0) {
+            // today's not completed
+            break;
+          } else {
+            break;
+          }
+        }
+        return currentStreak;
+      };
+
+      const currentStreak = calculateStreak(updatedCompletions);
       const habitRef = doc(db, 'habits', habitId);
       await updateDoc(habitRef, {
         completions: updatedCompletions,
@@ -189,7 +219,7 @@ export default function Habits() {
                 New Habit
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Create New Habit</DialogTitle>
               </DialogHeader>
@@ -293,7 +323,7 @@ export default function Habits() {
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Your Habits</h2>
           {habits.length === 0 ? (
             <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-              <CheckCircle2 className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <CheckCircle2 className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No habits yet</h3>
               <p className="text-slate-500 mb-6">Create your first habit to start building consistency</p>
               <Button onClick={() => setShowAdd(true)} className="bg-violet-600 hover:bg-violet-500">
@@ -339,7 +369,7 @@ export default function Habits() {
                       <CalendarIcon className="w-4 h-4 text-slate-500" />
                       <span className="text-sm text-slate-400">Last 7 Days</span>
                     </div>
-                    <div className="grid grid-cols-7 gap-2">
+                    <div className="grid grid-cols-7 gap-1 sm:gap-2">
                       {last7Days.map((date, index) => {
                         const dateKey = date.toISOString().split('T')[0];
                         const isCompleted = habit.completions && habit.completions[dateKey];
@@ -350,7 +380,7 @@ export default function Habits() {
                             key={index}
                             data-testid={`habit-day-${habit.id}-${index}`}
                             onClick={() => handleToggleCompletion(habit.id, date)}
-                            className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 border transition-all ${
+                            className={`aspect-square rounded-lg sm:rounded-xl flex flex-col items-center justify-center p-1 sm:p-2 text-xs sm:text-sm border transition-all ${
                               isCompleted
                                 ? 'bg-emerald-500/20 border-emerald-500/50 hover:bg-emerald-500/30'
                                 : 'border-white/10 hover:bg-white/5'

@@ -36,14 +36,17 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let timeoutId;
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      clearTimeout(timeoutId);
+
       if (firebaseUser) {
         setUser(firebaseUser);
-        
+
         // Load user stats from Firestore
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userRef);
-        
+
         if (userDoc.exists()) {
           const data = userDoc.data();
           setUserStats({
@@ -57,9 +60,20 @@ function App() {
         setUser(null);
       }
       setLoading(false);
+    }, (error) => {
+      console.error('Auth error:', error);
+      setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Safety timeout (3 seconds max)
+    timeoutId = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, [setUser, setUserStats]);
 
   if (loading) {

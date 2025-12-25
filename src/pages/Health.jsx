@@ -5,6 +5,7 @@ import { Heart, Plus, Activity, Moon, Utensils, Droplet } from 'lucide-react';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
+import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -80,12 +81,7 @@ export default function Health() {
     }
   };
 
-  // normalize potential Firestore Timestamp or string date
-  const toDate = (val) => {
-    if (!val) return null;
-    if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate();
-    return new Date(val);
-  };
+  const toDate = normalizeDate;
 
   const getWeeklyStats = () => {
     const now = new Date();
@@ -133,7 +129,7 @@ export default function Health() {
                 Log Health Data
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Log Health Data</DialogTitle>
               </DialogHeader>
@@ -327,7 +323,7 @@ export default function Health() {
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Activity</h2>
           {healthData.length === 0 ? (
             <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-              <Heart className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <Heart className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No health data logged yet</h3>
               <p className="text-slate-500 mb-6">Start tracking your health journey</p>
               <Button onClick={() => setShowAdd(true)} className="bg-pink-600 hover:bg-pink-500">

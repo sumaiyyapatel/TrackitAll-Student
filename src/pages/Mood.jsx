@@ -121,7 +121,7 @@ export default function Mood() {
                 Log Mood
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">How are you feeling?</DialogTitle>
               </DialogHeader>
@@ -236,12 +236,12 @@ export default function Mood() {
           <div>
             <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Mood Calendar</h2>
             <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
                 {moodEntries.slice(0, 35).map((entry, index) => (
                   <div
                     key={entry.id}
                     data-testid={`mood-day-${entry.id}`}
-                    className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 border border-white/5 hover:border-cyan-500/50 transition-all cursor-pointer ${getMoodColor(entry.mood)}/20`}
+                    className={`aspect-square rounded-lg sm:rounded-xl flex flex-col items-center justify-center p-1 sm:p-2 text-xs sm:text-sm border border-white/5 hover:border-cyan-500/50 transition-all cursor-pointer ${getMoodColor(entry.mood)}/20`}
                   >
                     <div className="text-2xl">{getMoodEmoji(entry.mood)}</div>
                     <div className="text-xs text-slate-400 mt-1">{entry.mood}</div>
@@ -257,7 +257,7 @@ export default function Mood() {
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Entries</h2>
           {moodEntries.length === 0 ? (
             <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-              <Smile className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <Smile className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No mood entries yet</h3>
               <p className="text-slate-500 mb-6">Start tracking your emotional wellbeing</p>
               <Button onClick={() => setShowAdd(true)} className="bg-cyan-600 hover:bg-cyan-500">
