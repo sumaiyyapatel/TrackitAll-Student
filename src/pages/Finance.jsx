@@ -142,10 +142,10 @@ export default function Finance() {
     <Layout>
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Finance Tracker</h1>
-            <p className="text-slate-400">Track your expenses and manage your budget</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Finance Tracker</h1>
+            <p className="text-sm sm:text-base text-slate-400">Track your expenses and manage your budget</p>
           </div>
           <Dialog open={showAddExpense} onOpenChange={setShowAddExpense}>
             <DialogTrigger asChild>
@@ -207,7 +207,7 @@ export default function Finance() {
         </div>
 
         {/* Monthly Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -258,7 +258,7 @@ export default function Finance() {
 
         {/* Category Breakdown */}
         {categoryData.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
             <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
               <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Spending by Category</h2>
               <ResponsiveContainer width="100%" height={300}>
@@ -318,7 +318,7 @@ export default function Finance() {
 
         {/* Recent Expenses */}
         <div>
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Transactions</h2>
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Transactions</h2>
           {expenses.length === 0 ? (
             <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
               <Wallet className="w-16 h-16 mx-auto text-slate-600 mb-4" />
@@ -335,27 +335,27 @@ export default function Finance() {
                 <table className="w-full">
                   <thead className="bg-slate-950/50">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Category</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Description</th>
-                      <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">Amount</th>
+                      <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-300">Date</th>
+                      <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-300">Category</th>
+                      <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-300 hidden sm:table-cell">Description</th>
+                      <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-right text-xs sm:text-sm font-semibold text-slate-300">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {expenses.slice(0, 15).map(expense => (
                       <tr key={expense.id} data-testid={`expense-${expense.id}`} className="hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 text-sm text-slate-400">{formatDate(expense.date)}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-xs sm:text-sm text-slate-400">{formatDate(expense.date)}</td>
+                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4">
                           <span
-                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium"
+                            className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium"
                             style={{ backgroundColor: `${CATEGORY_COLORS[expense.category]}20`, color: CATEGORY_COLORS[expense.category] }}
                           >
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[expense.category] }} />
-                            {expense.category}
+                            <span className="hidden sm:inline">{expense.category}</span>
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm">{expense.description || '-'}</td>
-                        <td className="px-6 py-4 text-right text-sm font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-xs sm:text-sm hidden sm:table-cell">{expense.description || '-'}</td>
+                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-right text-xs sm:text-sm font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
                           {formatCurrency(expense.amount)}
                         </td>
                       </tr>

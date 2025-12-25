@@ -132,7 +132,7 @@ export default function Goals() {
                 Create Goal
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 max-w-md">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Create New Goal</DialogTitle>
               </DialogHeader>

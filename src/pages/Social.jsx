@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Users, Plus, Trophy, TrendingUp, Target, Search, UserPlus, Check, X } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/helpers';
@@ -15,8 +15,7 @@ export default function Social() {
   const { user, userStats } = useStore();
   const [friends, setFriends] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [activityFeed, setActivityFeed] = useState([]);
+  const [friendsDetails, setFriendsDetails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchEmail, setSearchEmail] = useState('');
   const [showAddFriend, setShowAddFriend] = useState(false);
@@ -29,65 +28,51 @@ export default function Social() {
 
   const loadSocialData = async () => {
     try {
-      // Load friends: query only docs where user is involved (user1 or user2) to respect security rules
-      const friendsQ1 = query(collection(db, 'friends'), where('user1', '==', user.uid));
-      const friendsQ2 = query(collection(db, 'friends'), where('user2', '==', user.uid));
+      // Load friends where user is involved
+      const friendsQ1 = query(collection(db, 'friends'), where('user1', '==', user.uid), where('status', '==', 'accepted'));
+      const friendsQ2 = query(collection(db, 'friends'), where('user2', '==', user.uid), where('status', '==', 'accepted'));
+      
       const [friendsSnap1, friendsSnap2] = await Promise.all([getDocs(friendsQ1), getDocs(friendsQ2)]);
+      
       const friendMap = new Map();
       friendsSnap1.docs.concat(friendsSnap2.docs).forEach(d => {
-        const data = d.data();
-        // only include accepted friendships
-        if (data.status === 'accepted') friendMap.set(d.id, { id: d.id, ...data });
+        friendMap.set(d.id, { id: d.id, ...d.data() });
       });
+      
       const myFriends = Array.from(friendMap.values());
+      setFriends(myFriends);
 
-      // Load friend requests: query by user2 then filter status client-side to avoid composite index
+      // Load friend details
+      const friendIds = myFriends.map(f => 
+        f.user1 === user.uid ? f.user2 : f.user1
+      );
+      
+      const friendDetailsPromises = friendIds.map(async (friendId) => {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', friendId));
+          if (userDoc.exists()) {
+            return { uid: friendId, ...userDoc.data() };
+          }
+          return null;
+        } catch (error) {
+          console.warn('Could not load friend details:', friendId);
+          return null;
+        }
+      });
+      
+      const details = await Promise.all(friendDetailsPromises);
+      setFriendsDetails(details.filter(Boolean));
+
+      // Load friend requests
       const requestsQuery = query(
         collection(db, 'friends'),
-        where('user2', '==', user.uid)
+        where('user2', '==', user.uid),
+        where('status', '==', 'pending')
       );
       const requestsSnap = await getDocs(requestsQuery);
-      const requests = requestsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(r => r.status === 'pending');
-
-      // Load leaderboard (top users by points)
-      let leaderboardData = [];
-      try {
-        const usersQuery = query(
-          collection(db, 'users'),
-          orderBy('points', 'desc'),
-          limit(20)
-        );
-        const usersSnap = await getDocs(usersQuery);
-        leaderboardData = usersSnap.docs.map((doc, index) => ({
-          rank: index + 1,
-          uid: doc.id,
-          ...doc.data()
-        }));
-      } catch (err) {
-        // Permission denied for listing users is possible; degrade gracefully
-        console.warn('Could not load leaderboard:', err);
-        leaderboardData = [];
-      }
-
-      // Load activity feed (may be permission-restricted)
-      let activities = [];
-      try {
-        const activitiesQuery = query(
-          collection(db, 'activities'),
-          orderBy('timestamp', 'desc'),
-          limit(20)
-        );
-        const activitiesSnap = await getDocs(activitiesQuery);
-        activities = activitiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      } catch (err) {
-        console.warn('Could not load activity feed:', err);
-        activities = [];
-      }
-
-      setFriends(myFriends);
+      const requests = requestsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setFriendRequests(requests);
-      setLeaderboard(leaderboardData);
-      setActivityFeed(activities);
+
     } catch (error) {
       console.error('Error loading social data:', error);
       toast.error('Failed to load social data');
@@ -117,33 +102,33 @@ export default function Social() {
         return;
       }
 
-      // Check if friendship already exists by querying only relevant docs (avoid listing entire collection)
-      const existingQ1 = query(collection(db, 'friends'), where('user1', '==', user.uid));
-      const existingSnap1 = await getDocs(existingQ1);
-      const exists1 = existingSnap1.docs.some(d => {
-        const data = d.data();
-        return data.user2 === targetUser.id;
-      });
+      // Check if friendship already exists
+      const existingQ1 = query(
+        collection(db, 'friends'), 
+        where('user1', '==', user.uid),
+        where('user2', '==', targetUser.id)
+      );
+      const existingQ2 = query(
+        collection(db, 'friends'), 
+        where('user1', '==', targetUser.id),
+        where('user2', '==', user.uid)
+      );
 
-      const existingQ2 = query(collection(db, 'friends'), where('user1', '==', targetUser.id));
-      const existingSnap2 = await getDocs(existingQ2);
-      const exists2 = existingSnap2.docs.some(d => {
-        const data = d.data();
-        return data.user2 === user.uid;
-      });
+      const [existingSnap1, existingSnap2] = await Promise.all([
+        getDocs(existingQ1),
+        getDocs(existingQ2)
+      ]);
 
-      const exists = exists1 || exists2;
-
-      if (exists) {
+      if (!existingSnap1.empty || !existingSnap2.empty) {
         toast.error('Friend request already sent or you are already friends');
         return;
       }
 
       await addDoc(collection(db, 'friends'), {
         user1: user.uid,
-        user1Name: user.displayName,
+        user1Name: user.displayName || user.email,
         user2: targetUser.id,
-        user2Name: targetUser.data().displayName,
+        user2Name: (targetUser.data().displayName || targetUser.data().email || 'Unknown'),
         status: 'pending',
         createdDate: new Date().toISOString()
       });
@@ -182,20 +167,6 @@ export default function Social() {
     }
   };
 
-  const getRankColor = (rank) => {
-    if (rank === 1) return 'text-amber-400';
-    if (rank === 2) return 'text-slate-300';
-    if (rank === 3) return 'text-orange-400';
-    return 'text-slate-400';
-  };
-
-  const getRankBadge = (rank) => {
-    if (rank === 1) return '🥇';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
-    return `#${rank}`;
-  };
-
   if (loading) {
     return (
       <Layout>
@@ -210,10 +181,10 @@ export default function Social() {
     <Layout>
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Social</h1>
-            <p className="text-slate-400">Connect with friends and compete on leaderboards</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Social</h1>
+            <p className="text-sm sm:text-base text-slate-400">Connect with friends and track progress together</p>
           </div>
           <Dialog open={showAddFriend} onOpenChange={setShowAddFriend}>
             <DialogTrigger asChild>
@@ -228,6 +199,9 @@ export default function Social() {
             <DialogContent className="bg-slate-900 border-white/10">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Add Friend</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Search for users by email to send friend requests
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSendFriendRequest} className="space-y-4">
                 <div>
@@ -251,7 +225,7 @@ export default function Social() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -267,9 +241,9 @@ export default function Social() {
           <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-sm text-slate-400 mb-1">Your Rank</p>
+                <p className="text-sm text-slate-400 mb-1">Your Level</p>
                 <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {leaderboard.findIndex(u => u.uid === user.uid) + 1 || '-'}
+                  {userStats.level}
                 </h3>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg">
@@ -294,7 +268,7 @@ export default function Social() {
         {/* Friend Requests */}
         {friendRequests.length > 0 && (
           <div>
-            <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Friend Requests</h2>
+            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Friend Requests</h2>
             <div className="space-y-3">
               {friendRequests.map(request => (
                 <div
@@ -334,133 +308,51 @@ export default function Social() {
           </div>
         )}
 
-        {/* Tabs */}
-        <Tabs defaultValue="leaderboard" className="space-y-6">
-          <TabsList className="bg-slate-900/50 border border-white/5">
-            <TabsTrigger value="leaderboard" data-testid="tab-leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="friends" data-testid="tab-friends">Friends</TabsTrigger>
-            <TabsTrigger value="activity" data-testid="tab-activity">Activity Feed</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="leaderboard">
-            <div>
-              <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Top Performers</h2>
-              <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden">
-                <div className="divide-y divide-white/5">
-                  {leaderboard.map((userData, index) => (
-                    <div
-                      key={userData.uid}
-                      data-testid={`leaderboard-rank-${index + 1}`}
-                      className={`p-4 flex items-center gap-4 ${
-                        userData.uid === user.uid ? 'bg-violet-500/10 border-l-4 border-violet-500' : 'hover:bg-white/5'
-                      } transition-colors`}
-                    >
-                      <div className={`text-3xl font-bold ${getRankColor(index + 1)} w-12 text-center`}>
-                        {getRankBadge(index + 1)}
+        {/* Friends List */}
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Your Friends</h2>
+          {friends.length === 0 ? (
+            <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
+              <Users className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <h3 className="text-xl font-semibold mb-2 text-slate-400">No friends yet</h3>
+              <p className="text-slate-500 mb-6">Add friends to compete and motivate each other</p>
+              <Button onClick={() => setShowAddFriend(true)} className="bg-violet-600 hover:bg-violet-500">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Add Your First Friend
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+              {friends.map(friendship => {
+                const friendId = friendship.user1 === user.uid ? friendship.user2 : friendship.user1;
+                const friendName = friendship.user1 === user.uid ? friendship.user2Name : friendship.user1Name;
+                const friendData = friendsDetails.find(f => f.uid === friendId);
+                
+                return (
+                  <div
+                    key={friendship.id}
+                    data-testid={`friend-${friendship.id}`}
+                    className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all"
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-xl font-semibold">
+                        {friendName?.charAt(0) || 'F'}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-semibold">
-                          {userData.displayName || 'Student'}
-                          {userData.uid === user.uid && <span className="ml-2 text-xs text-violet-400">(You)</span>}
-                        </p>
-                        <p className="text-xs text-slate-500">Level {userData.level || 1}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-amber-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                          {userData.points || 0}
-                        </p>
-                        <p className="text-xs text-slate-500">XP</p>
+                      <div>
+                        <p className="font-semibold">{friendName}</p>
+                        <p className="text-xs text-slate-500">Level {friendData?.level || 1}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="friends">
-            <div>
-              <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Your Friends</h2>
-              {friends.length === 0 ? (
-                <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-                  <Users className="w-16 h-16 mx-auto text-slate-600 mb-4" />
-                  <h3 className="text-xl font-semibold mb-2 text-slate-400">No friends yet</h3>
-                  <p className="text-slate-500 mb-6">Add friends to compete and motivate each other</p>
-                  <Button onClick={() => setShowAddFriend(true)} className="bg-violet-600 hover:bg-violet-500">
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Add Your First Friend
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {friends.map(friendship => {
-                    const friendId = friendship.user1 === user.uid ? friendship.user2 : friendship.user1;
-                    const friendName = friendship.user1 === user.uid ? friendship.user2Name : friendship.user1Name;
-                    const friendData = leaderboard.find(u => u.uid === friendId);
-                    
-                    return (
-                      <div
-                        key={friendship.id}
-                        data-testid={`friend-${friendship.id}`}
-                        className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all"
-                      >
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-xl font-semibold">
-                            {friendName?.charAt(0) || 'F'}
-                          </div>
-                          <div>
-                            <p className="font-semibold">{friendName}</p>
-                            <p className="text-xs text-slate-500">Level {friendData?.level || 1}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                          <span className="text-xs text-slate-400">Points</span>
-                          <span className="text-lg font-bold text-amber-400">{friendData?.points || 0}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="activity">
-            <div>
-              <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Activity</h2>
-              {activityFeed.length === 0 ? (
-                <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
-                  <TrendingUp className="w-16 h-16 mx-auto text-slate-600 mb-4" />
-                  <h3 className="text-xl font-semibold mb-2 text-slate-400">No activity yet</h3>
-                  <p className="text-slate-500">Friend activities will appear here</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {activityFeed.map(activity => (
-                    <div
-                      key={activity.id}
-                      data-testid={`activity-${activity.id}`}
-                      className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-4 hover:border-violet-500/30 transition-all"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
-                          {activity.userName?.charAt(0) || 'U'}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm">
-                            <span className="font-semibold">{activity.userName}</span>{' '}
-                            <span className="text-slate-400">{activity.action}</span>
-                          </p>
-                          <p className="text-xs text-slate-500 mt-1">{formatDate(activity.timestamp)}</p>
-                        </div>
-                      </div>
+                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                      <span className="text-xs text-slate-400">Points</span>
+                      <span className="text-lg font-bold text-amber-400">{friendData?.points || 0}</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                );
+              })}
             </div>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </div>
     </Layout>
   );

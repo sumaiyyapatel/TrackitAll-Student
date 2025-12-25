@@ -35,6 +35,13 @@ export default function Auth() {
         streaks: { attendance: 0, mood: 0, health: 0 }
       };
 
+      // Create the user document in Firestore so other features (friends, leaderboard) can read it
+      try {
+        await setDoc(userRef, userData);
+      } catch (err) {
+        console.warn('Failed to create user document:', err.message || err);
+      }
+
       await initializeUserCollections(user.uid);
 
       setUserStats({ points: 20, level: 1, badges: userData.badges, streaks: userData.streaks });
@@ -103,7 +110,7 @@ export default function Auth() {
       <div className="absolute inset-0 bg-gradient-to-br from-violet-600/20 via-pink-600/10 to-cyan-600/20" />
       <div className="absolute inset-0" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.05\'/%3E%3C/svg%3E")', opacity: 0.5 }} />
 
-      <div className="relative z-10 w-full max-w-md">
+  <div className="relative z-10 w-full max-w-md sm:max-w-lg">
         {/* Logo & Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-pink-600 mb-4 shadow-[0_0_30px_rgba(139,92,246,0.6)]">

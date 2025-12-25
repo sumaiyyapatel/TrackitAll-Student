@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { getAttendanceColor, getAttendanceStatus, formatDate } from '@/utils/helpers';
 import { POINTS } from '@/utils/gamification';
@@ -134,6 +134,9 @@ export default function Attendance() {
               <DialogContent className="bg-slate-900 border-white/10">
                 <DialogHeader>
                   <DialogTitle className="text-slate-200">Mark Attendance</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Record your attendance for today
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleMarkAttendance} className="space-y-4">
                   <div>
@@ -168,6 +171,9 @@ export default function Attendance() {
               <DialogContent className="bg-slate-900 border-white/10">
                 <DialogHeader>
                   <DialogTitle className="text-slate-200">Add New Course</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Add a new course to track attendance
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAddCourse} className="space-y-4">
                   <div>
@@ -289,40 +295,67 @@ export default function Attendance() {
           </div>
         )}
 
-        {/* Recent Attendance */}
+        {/* Recent Attendance - responsive: cards on small screens, table on md+ */}
         {attendanceRecords.length > 0 && (
           <div>
             <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Attendance</h2>
-            <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-950/50">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Course</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {attendanceRecords.slice(0, 10).map(record => (
-                      <tr key={record.id} data-testid={`attendance-record-${record.id}`} className="hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 text-sm">{record.courseName}</td>
-                        <td className="px-6 py-4 text-sm text-slate-400">{formatDate(record.date)}</td>
-                        <td className="px-6 py-4">
-                          {record.attended ? (
-                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm">
-                              <Check className="w-3 h-3" /> Present
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-sm">
-                              <X className="w-3 h-3" /> Absent
-                            </span>
-                          )}
-                        </td>
+
+            {/* Small screens: stacked cards */}
+            <div className="md:hidden space-y-3">
+              {attendanceRecords.slice(0, 10).map(record => (
+                <div key={record.id} data-testid={`attendance-record-${record.id}`} className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-4 flex items-start justify-between">
+                  <div>
+                    <div className="font-semibold text-sm mb-1">{record.courseName}</div>
+                    <div className="text-xs text-slate-400">{formatDate(record.date)}</div>
+                  </div>
+                  <div className="ml-4 flex-shrink-0">
+                    {record.attended ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm">
+                        <Check className="w-3 h-3" /> Present
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-sm">
+                        <X className="w-3 h-3" /> Absent
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Medium+ screens: table */}
+            <div className="hidden md:block">
+              <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-950/50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Course</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {attendanceRecords.slice(0, 10).map(record => (
+                        <tr key={record.id} data-testid={`attendance-record-${record.id}`} className="hover:bg-white/5 transition-colors">
+                          <td className="px-6 py-4 text-sm">{record.courseName}</td>
+                          <td className="px-6 py-4 text-sm text-slate-400">{formatDate(record.date)}</td>
+                          <td className="px-6 py-4">
+                            {record.attended ? (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm">
+                                <Check className="w-3 h-3" /> Present
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-sm">
+                                <X className="w-3 h-3" /> Absent
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

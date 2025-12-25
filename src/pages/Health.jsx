@@ -118,10 +118,10 @@ export default function Health() {
     <Layout>
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Health & Fitness</h1>
-            <p className="text-slate-400">Track workouts, sleep, meals, and wellness</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Health & Fitness</h1>
+            <p className="text-sm sm:text-base text-slate-400">Track workouts, sleep, meals, and wellness</p>
           </div>
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
             <DialogTrigger asChild>
@@ -133,7 +133,7 @@ export default function Health() {
                 Log Health Data
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 max-w-md">
+            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Log Health Data</DialogTitle>
               </DialogHeader>
