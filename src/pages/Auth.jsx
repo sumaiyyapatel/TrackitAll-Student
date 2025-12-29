@@ -107,13 +107,13 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-600/20 via-pink-600/10 to-cyan-600/20" />
+      <div className="absolute inset-0 bg-[#8b5cf6]/10" />
       <div className="absolute inset-0" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.05\'/%3E%3C/svg%3E")', opacity: 0.5 }} />
 
   <div className="relative z-10 w-full max-w-md sm:max-w-lg">
         {/* Logo & Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-pink-600 mb-4 shadow-[0_0_30px_rgba(139,92,246,0.6)]">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#8b5cf6] mb-4">
             <Sparkles className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
@@ -123,7 +123,7 @@ export default function Auth() {
         </div>
 
         {/* Auth Card */}
-        <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-bg-card backdrop-blur-xl border border-white/10 rounded-2xl p-8">
           <div className="mb-6">
             <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
               {isLogin ? 'Welcome Back' : 'Get Started'}
@@ -248,7 +248,7 @@ export default function Auth() {
             <p className="text-xs text-slate-500">Trackers</p>
           </div>
           <div>
-            <div className="text-2xl font-bold text-pink-400" style={{ fontFamily: 'Outfit, sans-serif' }}>Real-time</div>
+            <div className="text-2xl font-bold text-[#8b5cf6]" style={{ fontFamily: 'Outfit, sans-serif' }}>Real-time</div>
             <p className="text-xs text-slate-500">Analytics</p>
           </div>
           <div>

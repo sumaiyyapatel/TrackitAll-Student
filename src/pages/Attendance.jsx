@@ -320,7 +320,7 @@ export default function Attendance() {
                 <div
                   key={course.id}
                   data-testid={`course-${course.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
+                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
@@ -344,7 +344,7 @@ export default function Attendance() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleDeleteCourse(course.id)}
-                            className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                            className="border-danger/50 text-danger hover:bg-danger/10"
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -362,12 +362,29 @@ export default function Attendance() {
                       <span className="font-semibold">{stats.attended} / {stats.total}</span>
                     </div>
 
-                    <div className="w-full bg-slate-800 rounded-full h-2">
+                    <div className="w-full bg-muted rounded-full h-2 relative overflow-hidden">
                       <div
-                        className={`h-2 rounded-full ${stats.percentage >= 90 ? 'bg-emerald-500' : stats.percentage >= 80 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                        className={`h-2 rounded-full transition-all duration-1000 ${
+                          stats.percentage >= 90 ? 'bg-emerald-500' : 
+                          stats.percentage >= 80 ? 'bg-amber-500' : 
+                          'bg-danger'
+                        } ${stats.percentage >= 90 ? 'animate-pulse-glow' : ''}`}
                         style={{ width: `${stats.percentage}%` }}
                       />
+                      {stats.percentage >= 90 && (
+                        <div className="absolute inset-0 animate-shimmer" />
+                      )}
                     </div>
+                    {stats.percentage >= 90 && (
+                      <p className="text-xs text-emerald-400 mt-1 font-medium animate-fade-in">
+                        🎉 Excellent attendance! Keep it up!
+                      </p>
+                    )}
+                    {stats.percentage >= 75 && stats.percentage < 90 && (
+                      <p className="text-xs text-amber-400 mt-1 font-medium animate-fade-in">
+                        💪 Good progress! Aim for 90%+
+                      </p>
+                    )}
 
                     <div className="flex items-center gap-2">
                       {stats.percentage >= 90 ? (
@@ -386,7 +403,7 @@ export default function Attendance() {
                     </div>
 
                     {stats.percentage < 90 && (
-                      <div className="mt-3 p-3 bg-slate-950/50 rounded-lg">
+                      <div className="mt-3 p-3 bg-bg-card rounded-lg">
                         <p className="text-xs text-slate-400">
                           <TrendingUp className="w-3 h-3 inline mr-1" />
                           Attend {Math.ceil((90 * stats.total - 100 * stats.attended) / 10)} more lectures to reach 90%
@@ -408,7 +425,7 @@ export default function Attendance() {
             {/* Small screens: stacked cards */}
             <div className="md:hidden space-y-3">
               {attendanceRecords.slice(0, 10).map(record => (
-                <div key={record.id} data-testid={`attendance-record-${record.id}`} className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-4 flex items-start justify-between group">
+                <div key={record.id} data-testid={`attendance-record-${record.id}`} className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-start justify-between group">
                   <div className="flex-1">
                     <div className="font-semibold text-sm mb-1">{record.courseName}</div>
                     <div className="text-xs text-slate-400">{formatDate(record.date)}</div>
@@ -419,13 +436,13 @@ export default function Attendance() {
                         <Check className="w-3 h-3" /> Present
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-sm">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-danger/10 text-danger text-sm">
                         <X className="w-3 h-3" /> Absent
                       </span>
                     )}
                     <button
                       onClick={() => handleDeleteAttendance(record.id)}
-                      className="p-1 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-1 text-slate-500 hover:text-danger hover:bg-danger/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -436,10 +453,10 @@ export default function Attendance() {
 
             {/* Medium+ screens: table */}
             <div className="hidden md:block">
-              <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden">
+              <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-slate-950/50">
+                    <thead className="bg-bg-card">
                       <tr>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Course</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
@@ -458,13 +475,13 @@ export default function Attendance() {
                                   <Check className="w-3 h-3" /> Present
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-sm">
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-danger/10 text-danger text-sm">
                                   <X className="w-3 h-3" /> Absent
                                 </span>
                               )}
                               <button
                                 onClick={() => handleDeleteAttendance(record.id)}
-                                className="p-1 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="p-1 text-slate-500 hover:text-danger hover:bg-danger/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>

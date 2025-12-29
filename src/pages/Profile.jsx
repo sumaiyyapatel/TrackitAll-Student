@@ -59,9 +59,9 @@ export default function Profile() {
         </div>
 
         {/* Profile Card */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-8">
+        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-8">
           <div className="flex items-start gap-6 mb-6">
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-violet-600 to-pink-600 flex items-center justify-center text-white text-4xl font-bold shadow-[0_0_30px_rgba(139,92,246,0.5)]">
+            <div className="w-24 h-24 rounded-2xl bg-[#8b5cf6] flex items-center justify-center text-white text-4xl font-bold">
               {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
             </div>
             <div className="flex-1">
@@ -115,7 +115,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/5">
+          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
             <div className="text-center">
               <div className="text-3xl font-bold text-violet-400" style={{ fontFamily: 'Outfit, sans-serif' }}>
                 {userStats.level}
@@ -129,7 +129,7 @@ export default function Profile() {
               <p className="text-sm text-slate-500">Total XP</p>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-pink-400" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              <div className="text-3xl font-bold text-[#8b5cf6]" style={{ fontFamily: 'Outfit, sans-serif' }}>
                 {userStats.badges.length}
               </div>
               <p className="text-sm text-slate-500">Badges</p>
@@ -138,7 +138,7 @@ export default function Profile() {
         </div>
 
         {/* Level Progress */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Level Progress</h3>
@@ -161,7 +161,7 @@ export default function Profile() {
         <div>
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Achievements</h2>
           {userStats.badges.length === 0 ? (
-            <div className="text-center py-12 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
+            <div className="text-center py-12 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
               <Trophy className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <p className="text-slate-400">No badges earned yet. Keep logging data to unlock achievements!</p>
             </div>
@@ -171,7 +171,7 @@ export default function Profile() {
                 <div
                   key={index}
                   data-testid={`profile-badge-${badge.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 text-center hover:border-violet-500/30 transition-all"
+                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 text-center hover:border-violet-500/30 transition-all"
                 >
                   <div className="text-5xl mb-3">{badge.icon || '🏆'}</div>
                   <h4 className="font-semibold mb-1">{badge.name}</h4>
@@ -186,7 +186,7 @@ export default function Profile() {
         <div>
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Streaks</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="text-2xl">📅</div>
                 <div>
@@ -197,7 +197,7 @@ export default function Profile() {
                 </div>
               </div>
             </div>
-            <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="text-2xl">😊</div>
                 <div>
@@ -208,12 +208,12 @@ export default function Profile() {
                 </div>
               </div>
             </div>
-            <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="text-2xl">💪</div>
                 <div>
                   <h4 className="font-semibold">Health</h4>
-                  <p className="text-2xl font-bold text-pink-400" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                  <p className="text-2xl font-bold text-[#8b5cf6]" style={{ fontFamily: 'Outfit, sans-serif' }}>
                     {userStats.streaks.health || 0} days
                   </p>
                 </div>
@@ -223,7 +223,7 @@ export default function Profile() {
         </div>
 
         {/* Logout */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-rose-500/20 rounded-2xl p-6">
+        <div className="bg-bg-card backdrop-blur-md border border-danger/20 rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold mb-1">Sign Out</h3>
@@ -233,7 +233,7 @@ export default function Profile() {
               data-testid="profile-logout-button"
               onClick={handleLogout}
               variant="outline"
-              className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+              className="border-danger/50 text-danger hover:bg-danger/10"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout

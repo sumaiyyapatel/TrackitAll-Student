@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { POINTS } from '@/utils/gamification';
 import { formatDate } from '@/utils/helpers';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { DataCard } from '@/components/cards/DataCard';
 
 const DAILY_GOAL = 8; // 8 glasses
 
@@ -182,7 +183,7 @@ export default function WaterTracker() {
         </div>
 
         {/* Today's Progress */}
-        <div className="bg-gradient-to-br from-cyan-600/20 to-blue-600/20 backdrop-blur-md border border-cyan-500/30 rounded-2xl p-8">
+        <div className="bg-info/20 backdrop-blur-md border border-cyan-500/30 rounded-2xl p-8">
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-cyan-500/20 mb-4">
               <Droplets className="w-16 h-16 text-cyan-400" />
@@ -199,7 +200,7 @@ export default function WaterTracker() {
             <Button
               data-testid="add-water-glass"
               onClick={handleAddGlass}
-              className="bg-cyan-600 hover:bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)] px-4 sm:px-8 py-3 sm:py-6 text-base sm:text-lg"
+              className="bg-cyan-600 hover:bg-cyan-500  px-4 sm:px-8 py-3 sm:py-6 text-base sm:text-lg"
             >
               <Plus className="w-6 h-6 mr-2" />
               Add Glass
@@ -217,7 +218,7 @@ export default function WaterTracker() {
               onClick={handleResetToday}
               disabled={todayGlasses <= 0}
               variant="ghost"
-              className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 px-4 sm:px-8 py-3 sm:py-6 text-base sm:text-lg"
+              className="text-slate-400 hover:text-danger hover:bg-danger/10 px-4 sm:px-8 py-3 sm:py-6 text-base sm:text-lg"
             >
               <RotateCcw className="w-6 h-6 mr-2" />
               Reset
@@ -225,63 +226,41 @@ export default function WaterTracker() {
           </div>
 
           {todayGlasses >= DAILY_GOAL && (
-            <div className="mt-6 p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-center">
-              <Award className="w-8 h-8 mx-auto text-emerald-400 mb-2" />
+            <div className="mt-6 p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-center animate-fade-in">
+              <Award className="w-8 h-8 mx-auto text-emerald-400 mb-2 animate-bounce" />
               <p className="text-emerald-400 font-semibold">🎉 Daily goal achieved! Great job staying hydrated!</p>
+            </div>
+          )}
+          {todayGlasses > 0 && todayGlasses < DAILY_GOAL && (
+            <div className="mt-6 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-center">
+              <p className="text-cyan-400 text-sm">
+                💪 {DAILY_GOAL - todayGlasses} more {DAILY_GOAL - todayGlasses === 1 ? 'glass' : 'glasses'} to reach your daily goal!
+              </p>
             </div>
           )}
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Weekly Average</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {avgWeekly.toFixed(1)}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-600 to-cyan-500 flex items-center justify-center shadow-lg">
-                <Droplets className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">glasses per day</p>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">This Week</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {weeklyData.reduce((sum, day) => sum + day.glasses, 0)}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center shadow-lg">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">total glasses</p>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Progress</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {Math.round(progress)}%
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center shadow-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">of daily goal</p>
-          </div>
+          <DataCard
+            title="Weekly Average"
+            value={`${avgWeekly.toFixed(1)} glasses`}
+            icon={Droplets}
+          />
+          <DataCard
+            title="This Week"
+            value={weeklyData.reduce((sum, day) => sum + day.glasses, 0)}
+            icon={Calendar}
+          />
+          <DataCard
+            title="Progress"
+            value={`${Math.round(progress)}%`}
+            icon={TrendingUp}
+          />
         </div>
 
         {/* Weekly Chart */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
           <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Weekly Hydration</h2>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={weeklyData}>
@@ -297,7 +276,7 @@ export default function WaterTracker() {
         </div>
 
         {/* Tips */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Hydration Tips 💡</h2>
           <div className="space-y-3">
             <div className="p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">

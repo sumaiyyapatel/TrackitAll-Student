@@ -8,6 +8,7 @@ import { userRecent } from '@/utils/canonicalQueries';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { toast } from 'sonner';
+import { DataCard } from '@/components/cards/DataCard';
 
 const CATEGORIES = {
   'attendance': { label: 'Classes', color: '#8b5cf6' },
@@ -194,55 +195,26 @@ export default function TimeAnalytics() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">This Week</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {Math.round(totalTime / 60)}h
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-violet-500 flex items-center justify-center shadow-lg">
-                <Clock className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">total tracked time</p>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Daily Average</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {Math.round(avgDailyTime / 60)}h
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center shadow-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">per day</p>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Most Productive</p>
-                <h3 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {mostProductiveDay || 'N/A'}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">day of week</p>
-          </div>
+          <DataCard
+            title="This Week"
+            value={`${Math.round(totalTime / 60)}h`}
+            icon={Clock}
+          />
+          <DataCard
+            title="Daily Average"
+            value={`${Math.round(avgDailyTime / 60)}h`}
+            icon={TrendingUp}
+          />
+          <DataCard
+            title="Most Productive"
+            value={mostProductiveDay || 'N/A'}
+            icon={Calendar}
+          />
         </div>
 
         {/* Time Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
             <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Time Distribution</h2>
             {timeData.length === 0 ? (
               <div className="text-center py-12">
@@ -277,7 +249,7 @@ export default function TimeAnalytics() {
             )}
           </div>
 
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
             <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Category Breakdown</h2>
             <div className="space-y-4">
               {timeData.map((item, index) => {
@@ -306,7 +278,7 @@ export default function TimeAnalytics() {
         </div>
 
         {/* Weekly Activity */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
           <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Weekly Activity Pattern</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={weeklyData}>
@@ -325,7 +297,7 @@ export default function TimeAnalytics() {
         </div>
 
         {/* Insights */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Insights</h2>
           <div className="space-y-3">
             <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-xl">

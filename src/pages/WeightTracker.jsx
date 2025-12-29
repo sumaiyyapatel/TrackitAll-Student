@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/helpers';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { DataCard } from '@/components/cards/DataCard';
 
 export default function WeightTracker() {
   const { user } = useStore();
@@ -184,57 +185,26 @@ export default function WeightTracker() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Current Weight</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {currentWeight.toFixed(1)}
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">kg</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-violet-500 flex items-center justify-center shadow-lg">
-                <Scale className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Change</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)}
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">kg</p>
-              </div>
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg ${
-                weightChange > 0 ? 'from-amber-600 to-amber-500' : 'from-emerald-600 to-emerald-500'
-              }`}>
-                {weightChange > 0 ? <TrendingUp className="w-6 h-6 text-white" /> : <TrendingDown className="w-6 h-6 text-white" />}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Goal Weight</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {goalWeight > 0 ? goalWeight.toFixed(1) : '-'}
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">kg</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center shadow-lg">
-                <Target className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
+          <DataCard
+            title="Current Weight"
+            value={`${currentWeight.toFixed(1)} kg`}
+            icon={Scale}
+          />
+          <DataCard
+            title="Change"
+            value={`${weightChange > 0 ? '+' : ''}${weightChange.toFixed(1)} kg`}
+            icon={weightChange > 0 ? TrendingUp : TrendingDown}
+          />
+          <DataCard
+            title="Goal Weight"
+            value={goalWeight > 0 ? `${goalWeight.toFixed(1)} kg` : '-'}
+            icon={Target}
+          />
         </div>
 
         {/* Chart */}
         {weightLogs.length > 0 ? (
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
             <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Weight Trend</h2>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
@@ -252,7 +222,7 @@ export default function WeightTracker() {
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-12 text-center">
+          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-12 text-center">
               <Scale className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
             <h3 className="text-xl font-semibold mb-2 text-slate-400">No weight logs yet</h3>
             <p className="text-slate-500 mb-6">Start tracking your weight journey</p>
@@ -265,11 +235,11 @@ export default function WeightTracker() {
 
         {/* Recent Logs */}
         {weightLogs.length > 0 && (
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
             <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Logs</h2>
             <div className="space-y-3">
               {weightLogs.slice(-10).reverse().map(log => (
-                <div key={log.id} className="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl group">
+                <div key={log.id} className="flex items-center justify-between p-4 bg-bg-card rounded-xl group">
                   <div className="flex items-center gap-4">
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
@@ -280,7 +250,7 @@ export default function WeightTracker() {
                       </button>
                       <button
                         onClick={() => handleDeleteLog(log.id)}
-                        className="p-2 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                        className="p-2 text-slate-500 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

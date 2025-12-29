@@ -16,6 +16,7 @@ import { normalizeDate } from '@/utils/dateNormalizer';
 import { POINTS } from '@/utils/gamification';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { expenseSchema, validateFormData, sanitizeInput } from '@/utils/validation';
+import { DataCard } from '@/components/cards/DataCard';
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Education', 'Bills', 'Health', 'Other'];
 const CATEGORY_COLORS = {
@@ -197,13 +198,13 @@ export default function Finance() {
             <DialogTrigger asChild>
               <Button
                 data-testid="add-expense-button"
-                className="bg-amber-600 hover:bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]"
+                className="bg-amber-600 hover:bg-amber-500 "
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Expense
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="bg-bg-card border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-slate-200">{editingId ? 'Edit Expense' : 'Log Expense'}</DialogTitle>
               </DialogHeader>
@@ -218,16 +219,16 @@ export default function Finance() {
                     onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
                     required
                     placeholder="500"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-bg-card border-slate-800 text-slate-200"
                   />
                 </div>
                 <div>
                   <Label className="text-slate-300">Category</Label>
                   <Select value={newExpense.category} onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}>
-                    <SelectTrigger data-testid="expense-category-select" className="bg-slate-950 border-slate-800 text-slate-200">
+                    <SelectTrigger data-testid="expense-category-select" className="bg-bg-card border-slate-800 text-slate-200">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-white/10">
+                    <SelectContent className="bg-bg-card border-white/10">
                       {CATEGORIES.map(cat => (
                         <SelectItem key={cat} value={cat} className="text-slate-200">{cat}</SelectItem>
                       ))}
@@ -241,7 +242,7 @@ export default function Finance() {
                     value={newExpense.description}
                     onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
                     placeholder="Lunch with friends"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-bg-card border-slate-800 text-slate-200"
                   />
                 </div>
                 <div className="flex gap-3">
@@ -260,58 +261,27 @@ export default function Finance() {
 
         {/* Monthly Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">This Month</p>
-                <h3 className="text-3xl font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                  {formatCurrency(monthlyTotal)}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg">
-                <Wallet className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <TrendingDown className="w-4 h-4 text-emerald-400" />
-              <span className="text-emerald-400">12% less</span>
-              <span className="text-slate-500">than last month</span>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Avg Daily Spend</p>
-                <h3 className="text-3xl font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                  {formatCurrency(monthlyTotal / new Date().getDate())}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-violet-500 flex items-center justify-center shadow-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Total Expenses</p>
-                <h3 className="text-3xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {expenses.length}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-600 to-pink-500 flex items-center justify-center shadow-lg">
-                <PieChartIcon className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
+          <DataCard
+            title="This Month"
+            value={formatCurrency(monthlyTotal)}
+            icon={Wallet}
+          />
+          <DataCard
+            title="Avg Daily Spend"
+            value={formatCurrency(monthlyTotal / new Date().getDate())}
+            icon={TrendingUp}
+          />
+          <DataCard
+            title="Total Expenses"
+            value={expenses.length}
+            icon={PieChartIcon}
+          />
         </div>
 
         {/* Category Breakdown */}
         {categoryData.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-            <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
               <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Spending by Category</h2>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -338,7 +308,7 @@ export default function Finance() {
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
               <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Category Breakdown</h2>
               <div className="space-y-4">
                 {categoryData.map(cat => {
@@ -372,7 +342,7 @@ export default function Finance() {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Transactions</h2>
           {expenses.length === 0 ? (
-            <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
+            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
               <Wallet className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No expenses logged yet</h3>
               <p className="text-slate-500 mb-6">Start tracking your spending to see insights</p>
@@ -382,10 +352,10 @@ export default function Finance() {
               </Button>
             </div>
           ) : (
-            <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden">
+            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-slate-950/50">
+                  <thead className="bg-bg-card/50">
                     <tr>
                       <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-300">Date</th>
                       <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-300">Category</th>
@@ -421,7 +391,7 @@ export default function Finance() {
                               </button>
                               <button
                                 onClick={() => handleDeleteExpense(expense.id)}
-                                className="p-1 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors"
+                                className="p-1 text-slate-500 hover:text-danger hover:bg-danger/10 rounded transition-colors"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>

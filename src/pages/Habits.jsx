@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { toast } from 'sonner';
 import { POINTS } from '@/utils/gamification';
 import { formatDate } from '@/utils/helpers';
+import { EncouragementMessage } from '@/components/EncouragementMessage';
+import { DataCard } from '@/components/cards/DataCard';
 
 const FREQUENCIES = [
   { value: 'daily', label: 'Daily', description: 'Every day' },
@@ -323,19 +325,19 @@ export default function Habits() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <p className="text-sm text-slate-400 mb-1">Active Habits</p>
                 <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{habits.length}</h3>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-violet-500 flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 rounded-xl bg-[#8b5cf6] flex items-center justify-center">
                 <CheckCircle2 className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <p className="text-sm text-slate-400 mb-1">Best Streak</p>
@@ -343,33 +345,25 @@ export default function Habits() {
                   {Math.max(...habits.map(h => h.bestStreak || 0), 0)}
                 </h3>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 rounded-xl bg-warning flex items-center justify-center">
                 <Flame className="w-6 h-6 text-white" />
               </div>
             </div>
             <p className="text-sm text-slate-500">days in a row</p>
           </div>
 
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Avg Completion</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {habits.length > 0 ? Math.round(habits.reduce((sum, h) => sum + getCompletionRate(h), 0) / habits.length) : 0}%
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center shadow-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
+          <DataCard
+            title="Avg Completion"
+            value={`${habits.length > 0 ? Math.round(habits.reduce((sum, h) => sum + getCompletionRate(h), 0) / habits.length) : 0}%`}
+            icon={TrendingUp}
+          />
         </div>
 
         {/* Habits List */}
         <div>
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Your Habits</h2>
           {habits.length === 0 ? (
-            <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
+            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
               <CheckCircle2 className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No habits yet</h3>
               <p className="text-slate-500 mb-6">Create your first habit to start building consistency</p>
@@ -384,7 +378,7 @@ export default function Habits() {
                 <div
                   key={habit.id}
                   data-testid={`habit-${habit.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all"
+                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
@@ -410,7 +404,7 @@ export default function Habits() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleDeleteHabit(habit.id)}
-                          className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                          className="border-danger/50 text-danger hover:bg-danger/10"
                         >
                           <Trash2 className="w-3 h-3 mr-1" />
                           Delete
@@ -418,15 +412,21 @@ export default function Habits() {
                       </div>
                       <div className="flex items-center gap-4 text-sm">
                         <div className="flex items-center gap-2">
-                          <Flame className="w-4 h-4 text-amber-400" />
-                          <span className="text-slate-400">Streak: <span className="text-white font-bold">{habit.currentStreak || 0}</span> days</span>
+                          <Flame className={`w-4 h-4 text-amber-400 ${habit.currentStreak >= 7 ? 'animate-pulse' : ''}`} />
+                          <span className="text-muted-foreground">Streak: <span className="text-foreground font-bold">{habit.currentStreak || 0}</span> days</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <TrendingUp className="w-4 h-4 text-emerald-400" />
-                          <span className="text-slate-400">Best: <span className="text-white font-bold">{habit.bestStreak || 0}</span> days</span>
+                          <span className="text-muted-foreground">Best: <span className="text-foreground font-bold">{habit.bestStreak || 0}</span> days</span>
                         </div>
-                        <div className="text-slate-400">Rate: <span className="text-white font-bold">{getCompletionRate(habit)}%</span></div>
+                        <div className="text-muted-foreground">Rate: <span className="text-foreground font-bold">{getCompletionRate(habit)}%</span></div>
                       </div>
+                      {habit.currentStreak >= 7 && (
+                        <EncouragementMessage 
+                          type="streak" 
+                          className="mt-3"
+                        />
+                      )}
                     </div>
                   </div>
 

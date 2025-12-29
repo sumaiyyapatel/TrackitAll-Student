@@ -15,6 +15,10 @@ import { toast } from 'sonner';
 import { calculateDaysRemaining, getGoalProgress, formatDate } from '@/utils/helpers';
 import { POINTS } from '@/utils/gamification';
 import InlineEditable from '@/components/InlineEditable';
+import { AnimatedProgress } from '@/components/AnimatedProgress';
+import { Celebration } from '@/components/ui/Celebration';
+import { EncouragementMessage, getProgressHint } from '@/components/EncouragementMessage';
+import { DataCard } from '@/components/cards/DataCard';
 
 const CATEGORIES = ['Health', 'Finance', 'Academic', 'Personal', 'Career'];
 
@@ -23,6 +27,8 @@ export default function Goals() {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState('');
   const [newGoal, setNewGoal] = useState({
     title: '',
     description: '',
@@ -81,17 +87,22 @@ export default function Goals() {
       const goalRef = doc(db, 'goals', goalId);
       const goal = goals.find(g => g.id === goalId);
       const progress = Math.min(newProgress, goal.targetValue);
+      const wasCompleted = goal.status === 'completed';
+      const isNowCompleted = progress >= goal.targetValue;
       
       await updateDoc(goalRef, {
         currentProgress: progress,
-        status: progress >= goal.targetValue ? 'completed' : 'active'
+        status: isNowCompleted ? 'completed' : 'active'
       });
 
-      if (progress >= goal.targetValue) {
+      if (isNowCompleted && !wasCompleted) {
         addPoints(POINTS.COMPLETE_GOAL);
+        setCelebrationMessage(`Goal "${goal.title}" completed! 🎉`);
+        setShowCelebration(true);
         toast.success(`+${POINTS.COMPLETE_GOAL} XP! Goal completed! 🎉`);
       } else {
-        toast.success('Progress updated!');
+        const progressHint = getProgressHint(progress, goal.targetValue, 'progress');
+        toast.success(progressHint);
       }
       
       loadGoals();
@@ -147,6 +158,11 @@ export default function Goals() {
 
   return (
     <Layout>
+      <Celebration 
+        show={showCelebration} 
+        message={celebrationMessage}
+        onComplete={() => setShowCelebration(false)}
+      />
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -177,7 +193,7 @@ export default function Goals() {
                     onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })}
                     required
                     placeholder="Read 10 books this month"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-bg-card border-slate-800 text-slate-200"
                   />
                 </div>
                 <div>
@@ -187,13 +203,13 @@ export default function Goals() {
                     value={newGoal.description}
                     onChange={(e) => setNewGoal({ ...newGoal, description: e.target.value })}
                     placeholder="Why is this goal important?"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-bg-card border-slate-800 text-slate-200"
                   />
                 </div>
                 <div>
                   <Label className="text-slate-300">Category</Label>
                   <Select value={newGoal.category} onValueChange={(val) => setNewGoal({ ...newGoal, category: val })}>
-                    <SelectTrigger data-testid="goal-category-select" className="bg-slate-950 border-slate-800 text-slate-200">
+                    <SelectTrigger data-testid="goal-category-select" className="bg-bg-card border-slate-800 text-slate-200">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-900 border-white/10">
@@ -212,7 +228,7 @@ export default function Goals() {
                     onChange={(e) => setNewGoal({ ...newGoal, targetValue: e.target.value })}
                     required
                     placeholder="10"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-bg-card border-slate-800 text-slate-200"
                   />
                 </div>
                 <div>
@@ -222,7 +238,7 @@ export default function Goals() {
                     type="date"
                     value={newGoal.deadline}
                     onChange={(e) => setNewGoal({ ...newGoal, deadline: e.target.value })}
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-bg-card border-slate-800 text-slate-200"
                   />
                 </div>
                 <div className="flex gap-3">
@@ -241,53 +257,28 @@ export default function Goals() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Active Goals</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{activeGoals.length}</h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center shadow-lg">
-                <Target className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">in progress</p>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Completed</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{completedGoals.length}</h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-violet-500 flex items-center justify-center shadow-lg">
-                <Check className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">goals achieved</p>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Success Rate</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {goals.length > 0 ? Math.round((completedGoals.length / goals.length) * 100) : 0}%
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">completion rate</p>
-          </div>
+          <DataCard
+            title="Active Goals"
+            value={activeGoals.length}
+            icon={Target}
+          />
+          <DataCard
+            title="Completed"
+            value={completedGoals.length}
+            icon={Check}
+          />
+          <DataCard
+            title="Success Rate"
+            value={`${goals.length > 0 ? Math.round((completedGoals.length / goals.length) * 100) : 0}%`}
+            icon={TrendingUp}
+          />
         </div>
 
         {/* Active Goals */}
         <div>
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Active Goals</h2>
           {activeGoals.length === 0 ? (
-            <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
+            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
               <Target className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No active goals</h3>
               <p className="text-slate-500 mb-6">Create your first goal and start achieving</p>
@@ -305,7 +296,7 @@ export default function Goals() {
                   <div
                     key={goal.id}
                     data-testid={`goal-${goal.id}`}
-                    className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-emerald-500/30 transition-all"
+                    className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-emerald-500/30 transition-all"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
@@ -317,7 +308,7 @@ export default function Goals() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleDeleteGoal(goal.id)}
-                            className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                            className="border-danger/50 text-danger hover:bg-danger/10"
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -335,12 +326,20 @@ export default function Goals() {
                     </div>
 
                     <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-slate-400">Progress</span>
-                        <span className="text-sm font-bold">{goal.currentProgress} / {goal.targetValue}</span>
-                      </div>
-                      <Progress value={parseFloat(progress)} className="h-3" />
-                      <p className="text-xs text-slate-500 mt-1">{progress}% complete</p>
+                      <AnimatedProgress
+                        value={goal.currentProgress}
+                        max={goal.targetValue}
+                        label="Progress"
+                        hint={getProgressHint(goal.currentProgress, goal.targetValue, 'progress')}
+                        color="emerald"
+                        showHint={true}
+                      />
+                      {parseFloat(progress) >= 80 && parseFloat(progress) < 100 && (
+                        <EncouragementMessage 
+                          type="progress" 
+                          className="mt-2"
+                        />
+                      )}
                     </div>
 
                     {goal.deadline && (
@@ -390,7 +389,7 @@ export default function Goals() {
                 <div
                   key={goal.id}
                   data-testid={`completed-goal-${goal.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-emerald-500/20 rounded-2xl p-6"
+                  className="bg-bg-card backdrop-blur-md border border-emerald-500/20 rounded-2xl p-6"
                 >
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
