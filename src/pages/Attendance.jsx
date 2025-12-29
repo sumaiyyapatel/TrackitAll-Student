@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { Calendar, Plus, Check, X, TrendingUp, AlertCircle } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { Calendar, Plus, Check, X, TrendingUp, AlertCircle, Trash2, Edit2 } from 'lucide-react';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { normalizeDate } from '@/utils/dateNormalizer';
@@ -22,6 +22,7 @@ export default function Attendance() {
   const [loading, setLoading] = useState(true);
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [showMarkAttendance, setShowMarkAttendance] = useState(false);
+  const [editingCourseId, setEditingCourseId] = useState(null);
   const [newCourse, setNewCourse] = useState({ name: '', code: '', totalLectures: 40 });
   const [selectedCourse, setSelectedCourse] = useState('');
   const [submittingAddCourse, setSubmittingAddCourse] = useState(false);
@@ -69,21 +70,75 @@ export default function Attendance() {
     if (submittingAddCourse) return;
     setSubmittingAddCourse(true);
     try {
-      await addDoc(collection(db, 'courses'), {
-        ...newCourse,
-        userId: user.uid,
-        createdAt: serverTimestamp()
-      });
-      toast.success('Course added successfully!');
+      if (editingCourseId) {
+        await updateDoc(doc(db, 'courses', editingCourseId), {
+          name: newCourse.name,
+          code: newCourse.code,
+          totalLectures: newCourse.totalLectures
+        });
+        toast.success('Course updated successfully!');
+      } else {
+        await addDoc(collection(db, 'courses'), {
+          ...newCourse,
+          userId: user.uid,
+          createdAt: serverTimestamp()
+        });
+        toast.success('Course added successfully!');
+      }
       setShowAddCourse(false);
+      setEditingCourseId(null);
       setNewCourse({ name: '', code: '', totalLectures: 40 });
       await loadData();
     } catch (error) {
-      console.error('Error adding course:', error);
-      toast.error('Failed to add course');
+      console.error('Error saving course:', error);
+      toast.error('Failed to save course');
     } finally {
       setSubmittingAddCourse(false);
     }
+  };
+
+  const handleDeleteCourse = async (courseId) => {
+    if (!window.confirm('Are you sure you want to delete this course? All attendance records will also be deleted.')) return;
+    try {
+      // Delete course
+      await deleteDoc(doc(db, 'courses', courseId));
+      // Delete related attendance records
+      const attendanceToDelete = attendanceRecords.filter(r => r.courseId === courseId);
+      await Promise.all(attendanceToDelete.map(r => deleteDoc(doc(db, 'attendance', r.id))));
+      toast.success('Course deleted');
+      await loadData();
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      toast.error('Failed to delete course');
+    }
+  };
+
+  const handleDeleteAttendance = async (recordId) => {
+    if (!window.confirm('Are you sure you want to delete this attendance record?')) return;
+    try {
+      await deleteDoc(doc(db, 'attendance', recordId));
+      toast.success('Attendance record deleted');
+      await loadData();
+    } catch (error) {
+      console.error('Error deleting attendance:', error);
+      toast.error('Failed to delete attendance record');
+    }
+  };
+
+  const handleEditCourse = (course) => {
+    setEditingCourseId(course.id);
+    setNewCourse({
+      name: course.name,
+      code: course.code,
+      totalLectures: course.totalLectures
+    });
+    setShowAddCourse(true);
+  };
+
+  const handleCancelCourse = () => {
+    setShowAddCourse(false);
+    setEditingCourseId(null);
+    setNewCourse({ name: '', code: '', totalLectures: 40 });
   };
 
   const handleMarkAttendance = async (e) => {
@@ -183,7 +238,7 @@ export default function Attendance() {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={showAddCourse} onOpenChange={setShowAddCourse}>
+            <Dialog open={showAddCourse} onOpenChange={(open) => { setShowAddCourse(open); if (!open) handleCancelCourse(); }}>
               <DialogTrigger asChild>
                 <Button data-testid="add-course-button" variant="outline" className="border-white/10 text-slate-300">
                   <Plus className="w-4 h-4 mr-2" />
@@ -192,9 +247,9 @@ export default function Attendance() {
               </DialogTrigger>
               <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle className="text-slate-200">Add New Course</DialogTitle>
+                  <DialogTitle className="text-slate-200">{editingCourseId ? 'Edit Course' : 'Add New Course'}</DialogTitle>
                   <DialogDescription className="sr-only">
-                    Add a new course to track attendance
+                    {editingCourseId ? 'Edit course details' : 'Add a new course to track attendance'}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAddCourse} className="space-y-4">
@@ -231,9 +286,15 @@ export default function Attendance() {
                       className="bg-slate-950 border-slate-800 text-slate-200"
                     />
                   </div>
-                  <Button type="submit" disabled={submittingAddCourse} className="w-full bg-violet-600 hover:bg-violet-500">
-                    {submittingAddCourse ? 'Adding...' : 'Add Course'}
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button type="submit" disabled={submittingAddCourse} className="flex-1 bg-violet-600 hover:bg-violet-500">
+                      {submittingAddCourse ? (editingCourseId ? 'Updating...' : 'Adding...') : (editingCourseId ? 'Update Course' : 'Add Course')}
+                    </Button>
+                    <Button type="button" onClick={handleCancelCourse} disabled={submittingAddCourse} variant="outline" className="flex-1 border-white/10">
+                      <X className="w-4 h-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
                 </form>
               </DialogContent>
             </Dialog>
@@ -259,14 +320,36 @@ export default function Attendance() {
                 <div
                   key={course.id}
                   data-testid={`course-${course.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all"
+                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <div>
-                        <h3 className="font-bold text-lg mb-1 truncate" title={course.name} style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          {course.name}
-                        </h3>
-                      <p className="text-sm text-slate-500">{course.code}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <h3 className="font-bold text-lg mb-1 truncate" title={course.name} style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            {course.name}
+                          </h3>
+                          <p className="text-sm text-slate-500">{course.code}</p>
+                        </div>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditCourse(course)}
+                            className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteCourse(course.id)}
+                            className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                     <div className={`text-3xl font-bold ${getAttendanceColor(stats.percentage)}`}>
                       {stats.percentage}%
@@ -325,12 +408,12 @@ export default function Attendance() {
             {/* Small screens: stacked cards */}
             <div className="md:hidden space-y-3">
               {attendanceRecords.slice(0, 10).map(record => (
-                <div key={record.id} data-testid={`attendance-record-${record.id}`} className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-4 flex items-start justify-between">
-                  <div>
+                <div key={record.id} data-testid={`attendance-record-${record.id}`} className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-4 flex items-start justify-between group">
+                  <div className="flex-1">
                     <div className="font-semibold text-sm mb-1">{record.courseName}</div>
                     <div className="text-xs text-slate-400">{formatDate(record.date)}</div>
                   </div>
-                  <div className="ml-4 flex-shrink-0">
+                  <div className="ml-4 flex items-center gap-2">
                     {record.attended ? (
                       <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm">
                         <Check className="w-3 h-3" /> Present
@@ -340,6 +423,12 @@ export default function Attendance() {
                         <X className="w-3 h-3" /> Absent
                       </span>
                     )}
+                    <button
+                      onClick={() => handleDeleteAttendance(record.id)}
+                      className="p-1 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -359,19 +448,27 @@ export default function Attendance() {
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {attendanceRecords.slice(0, 10).map(record => (
-                        <tr key={record.id} data-testid={`attendance-record-${record.id}`} className="hover:bg-white/5 transition-colors">
+                        <tr key={record.id} data-testid={`attendance-record-${record.id}`} className="hover:bg-white/5 transition-colors group">
                           <td className="px-6 py-4 text-sm">{record.courseName}</td>
                           <td className="px-6 py-4 text-sm text-slate-400">{formatDate(record.date)}</td>
                           <td className="px-6 py-4">
-                            {record.attended ? (
-                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm">
-                                <Check className="w-3 h-3" /> Present
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-sm">
-                                <X className="w-3 h-3" /> Absent
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {record.attended ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm">
+                                  <Check className="w-3 h-3" /> Present
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-sm">
+                                  <X className="w-3 h-3" /> Absent
+                                </span>
+                              )}
+                              <button
+                                onClick={() => handleDeleteAttendance(record.id)}
+                                className="p-1 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

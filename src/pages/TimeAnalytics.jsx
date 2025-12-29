@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Clock, TrendingUp, Calendar, PieChart as PieChartIcon } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
+import { getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -27,15 +27,24 @@ export default function TimeAnalytics() {
   useEffect(() => {
     if (user) {
       loadTimeData();
+    } else {
+      // if no user, ensure we stop loading spinner
+      setLoading(false);
     }
   }, [user]);
 
   const loadTimeData = async () => {
     try {
-      const now = new Date();
-      const startOfWeekDate = new Date(now.setDate(now.getDate() - now.getDay()));
+      setLoading(true);
 
-      const toDate = normalizeDate;
+      // compute start of week (Monday) at local midnight
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const daysSinceMonday = (today.getDay() + 6) % 7; // Monday=0
+      const startOfWeekDate = new Date(today);
+      startOfWeekDate.setDate(today.getDate() - daysSinceMonday);
+
+      const toDate = (v) => normalizeDate(v);
 
       // Canonical query limit - tune based on expected dataset size
       const CANONICAL_LIMIT = 500;
@@ -43,17 +52,19 @@ export default function TimeAnalytics() {
       // Attendance: fetch canonical set then filter by date client-side
       const attendanceSnap = await getDocs(userRecent(db, 'attendance', user.uid, CANONICAL_LIMIT));
       const attendanceDocs = attendanceSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const classTime = attendanceDocs.filter(d => {
-        const dt = toDate(d.date);
-        return dt && dt >= startOfWeekDate;
-      }).length * 60;
+      const classTime = attendanceDocs
+        .filter(d => {
+          const dt = toDate(d.date ?? d.createdAt ?? d.created_at ?? d.timestamp);
+          return dt && dt >= startOfWeekDate;
+        })
+        .reduce((sum, d) => sum + (d.duration || 60), 0); // fallback to 60 minutes per class
 
       // Study sessions: canonical query then aggregate client-side
       const studySnap = await getDocs(userRecent(db, 'study_sessions', user.uid, CANONICAL_LIMIT));
       const studyDocs = studySnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const studyTime = studyDocs
         .filter(d => {
-          const dt = toDate(d.date);
+          const dt = toDate(d.date ?? d.createdAt ?? d.created_at ?? d.timestamp);
           return dt && dt >= startOfWeekDate;
         })
         .reduce((sum, d) => sum + (d.duration || 0), 0);
@@ -64,14 +75,14 @@ export default function TimeAnalytics() {
 
       const exerciseTime = healthDocs
         .filter(d => {
-          const dt = toDate(d.date);
-          return dt && dt >= startOfWeekDate && d.type === 'workout';
+          const dt = toDate(d.date ?? d.createdAt ?? d.created_at ?? d.timestamp);
+          return dt && dt >= startOfWeekDate && (d.type === 'workout' || d.type === 'exercise');
         })
         .reduce((sum, d) => sum + (d.duration || 0), 0);
 
       const sleepTime = healthDocs
         .filter(d => {
-          const dt = toDate(d.date);
+          const dt = toDate(d.date ?? d.createdAt ?? d.created_at ?? d.timestamp);
           return dt && dt >= startOfWeekDate && d.type === 'sleep';
         })
         .reduce((sum, d) => sum + ((d.hours || 0) * 60), 0);
@@ -83,19 +94,49 @@ export default function TimeAnalytics() {
         { name: 'Sleep', value: sleepTime, color: CATEGORIES.sleep.color }
       ].filter(item => item.value > 0);
 
-      // Weekly breakdown remains client-side (static example preserved)
-      const weekly = [
-        { day: 'Mon', classes: 2, study: 3, exercise: 1 },
-        { day: 'Tue', classes: 3, study: 2, exercise: 1 },
-        { day: 'Wed', classes: 2, study: 4, exercise: 0 },
-        { day: 'Thu', classes: 3, study: 2, exercise: 1 },
-        { day: 'Fri', classes: 2, study: 3, exercise: 1 },
-        { day: 'Sat', classes: 0, study: 5, exercise: 2 },
-        { day: 'Sun', classes: 0, study: 4, exercise: 1 }
-      ];
+      // Weekly breakdown: aggregate per-day (Mon-Sun) from fetched docs
+      const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const weekStart = new Date(startOfWeekDate);
+      const weekEnd = new Date(startOfWeekDate);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+
+      const weeklyAgg = dayLabels.map((label) => ({ day: label, classes: 0, study: 0, exercise: 0 }));
+
+      // Attendance -> classes count per day
+      attendanceDocs.forEach((d) => {
+        const dt = toDate(d.date ?? d.createdAt ?? d.created_at ?? d.timestamp);
+        if (!dt || dt < weekStart || dt >= weekEnd) return;
+        const idx = (dt.getDay() + 6) % 7; // Monday=0
+        weeklyAgg[idx].classes += 1;
+      });
+
+      // Study sessions -> accumulate hours per day
+      studyDocs.forEach((d) => {
+        const dt = toDate(d.date ?? d.createdAt ?? d.created_at ?? d.timestamp);
+        if (!dt || dt < weekStart || dt >= weekEnd) return;
+        const idx = (dt.getDay() + 6) % 7;
+        weeklyAgg[idx].study += (d.duration || 0) / 60; // convert minutes to hours
+      });
+
+      // Health workouts -> accumulate hours per day
+      healthDocs.forEach((d) => {
+        const dt = toDate(d.date ?? d.createdAt ?? d.created_at ?? d.timestamp);
+        if (!dt || dt < weekStart || dt >= weekEnd) return;
+        const idx = (dt.getDay() + 6) % 7;
+        if (d.type === 'sleep') return;
+        if (d.type === 'workout' || d.type === 'exercise') {
+          weeklyAgg[idx].exercise += (d.duration || 0) / 60; // minutes -> hours
+        }
+      });
+
+      // Round study/exercise values to one decimal for nicer charts
+      weeklyAgg.forEach((w) => {
+        w.study = Math.round((w.study + Number.EPSILON) * 10) / 10;
+        w.exercise = Math.round((w.exercise + Number.EPSILON) * 10) / 10;
+      });
 
       setTimeData(timeDistribution);
-      setWeeklyData(weekly);
+      setWeeklyData(weeklyAgg);
     } catch (error) {
       console.error('Error loading time data:', error);
       toast.error('Failed to load time analytics');
@@ -116,6 +157,21 @@ export default function TimeAnalytics() {
 
   const totalTime = getTotalTime();
   const avgDailyTime = totalTime / 7;
+
+  // compute derived non-mutating values
+  const mostProductiveDay = (() => {
+    if (!weeklyData || weeklyData.length === 0) return 'N/A';
+    return weeklyData.reduce((best, cur) => {
+      const bestScore = (best.study || 0) + (best.classes || 0);
+      const curScore = (cur.study || 0) + (cur.classes || 0);
+      return curScore > bestScore ? cur : best;
+    }, weeklyData[0]).day;
+  })();
+
+  const topCategoryName = (() => {
+    if (!timeData || timeData.length === 0) return null;
+    return [...timeData].sort((a, b) => b.value - a.value)[0].name.toLowerCase();
+  })();
 
   if (loading) {
     return (
@@ -173,7 +229,7 @@ export default function TimeAnalytics() {
               <div>
                 <p className="text-sm text-slate-400 mb-1">Most Productive</p>
                 <h3 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {weeklyData.sort((a, b) => (b.study + b.classes) - (a.study + a.classes))[0]?.day || 'N/A'}
+                  {mostProductiveDay || 'N/A'}
                 </h3>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg">
@@ -276,7 +332,7 @@ export default function TimeAnalytics() {
               <p className="text-sm">
                 <span className="font-semibold text-violet-400">Peak Productivity:</span>{' '}
                 <span className="text-slate-300">
-                  You're most productive on {weeklyData.sort((a, b) => (b.study + b.classes) - (a.study + a.classes))[0]?.day || 'weekdays'}.
+                  You're most productive on {mostProductiveDay || 'weekdays'}.
                 </span>
               </p>
             </div>
@@ -285,7 +341,7 @@ export default function TimeAnalytics() {
                 <span className="font-semibold text-emerald-400">Time Allocation:</span>{' '}
                 <span className="text-slate-300">
                   {timeData.length > 0
-                    ? `You spend most time on ${timeData.sort((a, b) => b.value - a.value)[0].name.toLowerCase()}.`
+                    ? `You spend most time on ${topCategoryName}.`
                     : 'Start tracking to see insights.'}
                 </span>
               </p>

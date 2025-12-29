@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { Droplets, Plus, TrendingUp, Calendar, Award } from 'lucide-react';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { Droplets, Plus, TrendingUp, Calendar, Award, Minus, RotateCcw } from 'lucide-react';
+import { collection, addDoc, getDocs, query, where, orderBy, limit, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { normalizeDate } from '@/utils/dateNormalizer';
@@ -32,51 +32,52 @@ export default function WaterTracker() {
     try {
       const now = new Date();
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const getStartOfWeek = (date = new Date(), startDay = 1) => {
+      
+      const getStartOfWeek = (date = new Date()) => {
         const d = new Date(date);
-        // normalize to local midnight
-        d.setHours(0,0,0,0);
-        const day = d.getDay(); // 0=Sun
-        // If startDay is Monday (1), compute diff
-        const diff = d.getDate() - day + (startDay === 0 ? 0 : (day === 0 ? -6 : 1));
-        const res = new Date(d.setDate(diff));
-        res.setHours(0,0,0,0);
-        return res;
+        d.setHours(0, 0, 0, 0);
+        const day = d.getDay(); // 0=Sun, 1=Mon...
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(d.setDate(diff));
       };
-      const startOfWeek = getStartOfWeek(now, 1);
+      const startOfWeek = getStartOfWeek(now);
 
       const snap = await getDocs(userRecent(db, 'water_intake', user.uid, 500));
       const allLogs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Load today's water intake (client-side filter)
-      const todayTotal = allLogs
-        .filter(l => {
-          const d = normalizeDate(l.date);
-          return d && d >= startOfDay;
-        })
-        .reduce((sum, doc) => sum + (doc.glasses || 0), 0);
+      // Load today's water intake
+      const todayLogs = allLogs.filter(l => {
+        const d = normalizeDate(l.date);
+        return d && d >= startOfDay;
+      });
+      const todayTotal = todayLogs.reduce((sum, doc) => sum + (doc.glasses || 0), 0);
 
-      // Weekly logs (client-side filter)
-      const logs = allLogs.filter(l => {
+      // Weekly logs
+      const weeklyLogs = allLogs.filter(l => {
         const d = normalizeDate(l.date);
         return d && d >= startOfWeek;
-      }).sort((a, b) => normalizeDate(b.date) - normalizeDate(a.date));
-
-      // Group by day for chart
-      const dayMap = {};
-      logs.forEach(log => {
-        const d = normalizeDate(log.date) || new Date();
-        const day = d.toLocaleDateString('en-US', { weekday: 'short' });
-        dayMap[day] = (dayMap[day] || 0) + (log.glasses || 0);
       });
 
-      const chartData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => ({
+      // Group by day for chart
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const dayMap = {};
+      
+      weeklyLogs.forEach(log => {
+        const d = normalizeDate(log.date);
+        if (d) {
+          const dayIdx = (d.getDay() + 6) % 7; // Convert 0=Sun to 6=Sun, 1=Mon to 0=Mon
+          const dayName = days[dayIdx];
+          dayMap[dayName] = (dayMap[dayName] || 0) + (log.glasses || 0);
+        }
+      });
+
+      const chartData = days.map(day => ({
         day,
         glasses: dayMap[day] || 0
       }));
 
       setTodayGlasses(todayTotal);
-      setWaterLogs(logs);
+      setWaterLogs(allLogs); // keep all for potential deletions
       setWeeklyData(chartData);
     } catch (error) {
       console.error('Error loading water data:', error);
@@ -108,6 +109,53 @@ export default function WaterTracker() {
     } catch (error) {
       console.error('Error adding water:', error);
       toast.error('Failed to log water');
+    }
+  };
+
+  const handleRemoveGlass = async () => {
+    if (todayGlasses <= 0) return;
+    
+    try {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      // Find the most recent log from today
+      const todayLogs = waterLogs
+        .filter(l => {
+          const d = normalizeDate(l.date);
+          return d && d >= startOfDay;
+        })
+        .sort((a, b) => normalizeDate(b.date) - normalizeDate(a.date));
+
+      if (todayLogs.length > 0) {
+        await deleteDoc(doc(db, 'water_intake', todayLogs[0].id));
+        toast.success('Glass removed');
+        loadWaterData();
+      }
+    } catch (error) {
+      console.error('Error removing water:', error);
+      toast.error('Failed to remove glass');
+    }
+  };
+
+  const handleResetToday = async () => {
+    if (todayGlasses <= 0) return;
+    if (!window.confirm('Are you sure you want to reset today\'s intake?')) return;
+
+    try {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayLogs = waterLogs.filter(l => {
+        const d = normalizeDate(l.date);
+        return d && d >= startOfDay;
+      });
+
+      await Promise.all(todayLogs.map(l => deleteDoc(doc(db, 'water_intake', l.id))));
+      toast.success('Today\'s intake reset');
+      loadWaterData();
+    } catch (error) {
+      console.error('Error resetting water:', error);
+      toast.error('Failed to reset intake');
     }
   };
 
@@ -147,7 +195,7 @@ export default function WaterTracker() {
 
           <Progress value={progress} className="h-4 mb-4" />
           
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             <Button
               data-testid="add-water-glass"
               onClick={handleAddGlass}
@@ -155,6 +203,24 @@ export default function WaterTracker() {
             >
               <Plus className="w-6 h-6 mr-2" />
               Add Glass
+            </Button>
+            <Button
+              onClick={handleRemoveGlass}
+              disabled={todayGlasses <= 0}
+              variant="outline"
+              className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 px-4 sm:px-8 py-3 sm:py-6 text-base sm:text-lg"
+            >
+              <Minus className="w-6 h-6 mr-2" />
+              Remove
+            </Button>
+            <Button
+              onClick={handleResetToday}
+              disabled={todayGlasses <= 0}
+              variant="ghost"
+              className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 px-4 sm:px-8 py-3 sm:py-6 text-base sm:text-lg"
+            >
+              <RotateCcw className="w-6 h-6 mr-2" />
+              Reset
             </Button>
           </div>
 

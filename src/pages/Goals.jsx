@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { Target, Plus, Check, Clock, TrendingUp } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { Target, Plus, Check, Clock, TrendingUp, Trash2, X } from 'lucide-react';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,6 +120,18 @@ export default function Goals() {
     }
   };
 
+  const handleDeleteGoal = async (goalId) => {
+    if (!window.confirm('Are you sure you want to delete this goal? This action cannot be undone.')) return;
+    try {
+      await deleteDoc(doc(db, 'goals', goalId));
+      toast.success('Goal deleted');
+      loadGoals();
+    } catch (error) {
+      console.error('Error deleting goal:', error);
+      toast.error('Failed to delete goal');
+    }
+  };
+
   const activeGoals = goals.filter(g => g.status === 'active');
   const completedGoals = goals.filter(g => g.status === 'completed');
 
@@ -142,7 +154,7 @@ export default function Goals() {
             <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Goals</h1>
             <p className="text-slate-400">Set and track your personal goals</p>
           </div>
-          <Dialog open={showAdd} onOpenChange={setShowAdd}>
+          <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) setNewGoal({ title: '', description: '', category: 'Personal', targetValue: '', currentProgress: 0, deadline: '', status: 'active' }); }}>
             <DialogTrigger asChild>
               <Button
                 data-testid="add-goal-button"
@@ -156,7 +168,7 @@ export default function Goals() {
               <DialogHeader>
                 <DialogTitle className="text-slate-200">Create New Goal</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleAddGoal} className="space-y-4">
+              <form onSubmit={handleAddGoal} className="space-y-4" onReset={handleAddGoal}>
                 <div>
                   <Label className="text-slate-300">Goal Title</Label>
                   <Input
@@ -213,9 +225,15 @@ export default function Goals() {
                     className="bg-slate-950 border-slate-800 text-slate-200"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500">
-                  Create Goal
-                </Button>
+                <div className="flex gap-3">
+                  <Button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-500">
+                    Create Goal
+                  </Button>
+                  <Button type="button" onClick={() => setShowAdd(false)} variant="outline" className="flex-1 border-white/10">
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -290,10 +308,20 @@ export default function Goals() {
                     className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-emerald-500/30 transition-all"
                   >
                     <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-medium mb-2">
-                          {goal.category}
-                        </span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-medium">
+                            {goal.category}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteGoal(goal.id)}
+                            className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
                         <h3 className="text-xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
                           <InlineEditable
                             value={goal.title}

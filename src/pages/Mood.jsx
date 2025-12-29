@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { Smile, Plus, TrendingUp, Calendar } from 'lucide-react';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { Smile, Plus, TrendingUp, Calendar, Trash2, Edit2, X } from 'lucide-react';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ export default function Mood() {
   const [moodEntries, setMoodEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newMood, setNewMood] = useState({
     mood: 5,
     factors: [],
@@ -50,20 +51,58 @@ export default function Mood() {
   const handleAddMood = async (e) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'mood_entries'), {
-        ...newMood,
-        date: new Date().toISOString(),
-        userId: user.uid
-      });
-      addPoints(POINTS.LOG_MOOD);
-      toast.success(`+${POINTS.LOG_MOOD} XP! Mood logged ${getMoodEmoji(newMood.mood)}`);
+      if (editingId) {
+        await updateDoc(doc(db, 'mood_entries', editingId), {
+          mood: newMood.mood,
+          factors: newMood.factors,
+          journal: newMood.journal
+        });
+        toast.success('Mood entry updated!');
+      } else {
+        await addDoc(collection(db, 'mood_entries'), {
+          ...newMood,
+          date: new Date().toISOString(),
+          userId: user.uid
+        });
+        addPoints(POINTS.LOG_MOOD);
+        toast.success(`+${POINTS.LOG_MOOD} XP! Mood logged ${getMoodEmoji(newMood.mood)}`);
+      }
       setShowAdd(false);
+      setEditingId(null);
       setNewMood({ mood: 5, factors: [], journal: '' });
       loadMoodData();
     } catch (error) {
-      console.error('Error adding mood:', error);
-      toast.error('Failed to log mood');
+      console.error('Error saving mood:', error);
+      toast.error('Failed to save mood');
     }
+  };
+
+  const handleDeleteMood = async (entryId) => {
+    if (!window.confirm('Are you sure you want to delete this mood entry?')) return;
+    try {
+      await deleteDoc(doc(db, 'mood_entries', entryId));
+      toast.success('Mood entry deleted');
+      loadMoodData();
+    } catch (error) {
+      console.error('Error deleting mood entry:', error);
+      toast.error('Failed to delete mood entry');
+    }
+  };
+
+  const handleEditMood = (entry) => {
+    setEditingId(entry.id);
+    setNewMood({
+      mood: entry.mood,
+      factors: entry.factors || [],
+      journal: entry.journal || ''
+    });
+    setShowAdd(true);
+  };
+
+  const handleCancel = () => {
+    setShowAdd(false);
+    setEditingId(null);
+    setNewMood({ mood: 5, factors: [], journal: '' });
   };
 
   const toggleFactor = (factor) => {
@@ -111,7 +150,7 @@ export default function Mood() {
             <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Mood Tracker</h1>
             <p className="text-slate-400">Track your daily mood and mental wellbeing</p>
           </div>
-          <Dialog open={showAdd} onOpenChange={setShowAdd}>
+          <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) handleCancel(); }}>
             <DialogTrigger asChild>
               <Button
                 data-testid="add-mood-button"
@@ -123,7 +162,7 @@ export default function Mood() {
             </DialogTrigger>
             <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">How are you feeling?</DialogTitle>
+                <DialogTitle className="text-slate-200">{editingId ? 'Edit Mood Entry' : 'How are you feeling?'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddMood} className="space-y-6">
                 <div className="text-center">
@@ -174,9 +213,15 @@ export default function Mood() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-500">
-                  Log Mood
-                </Button>
+                <div className="flex gap-3">
+                  <Button type="submit" className="flex-1 bg-cyan-600 hover:bg-cyan-500">
+                    {editingId ? 'Update Mood' : 'Log Mood'}
+                  </Button>
+                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -271,7 +316,7 @@ export default function Mood() {
                 <div
                   key={entry.id}
                   data-testid={`mood-entry-${entry.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-cyan-500/30 transition-all"
+                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-cyan-500/30 transition-all group"
                 >
                   <div className="flex items-start gap-4">
                     <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-4xl ${getMoodColor(entry.mood)}`}>
@@ -282,7 +327,27 @@ export default function Mood() {
                         <h4 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
                           {entry.mood}/10
                         </h4>
-                        <p className="text-sm text-slate-400">{formatDate(entry.date)}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-slate-400">{formatDate(entry.date)}</p>
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditMood(entry)}
+                              className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteMood(entry.id)}
+                              className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                       {entry.factors && entry.factors.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-3">

@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { CheckCircle2, Circle, Plus, TrendingUp, Calendar as CalendarIcon, Flame } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { CheckCircle2, Circle, Plus, TrendingUp, Calendar as CalendarIcon, Flame, Trash2, Edit2, X } from 'lucide-react';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { POINTS } from '@/utils/gamification';
 import { formatDate } from '@/utils/helpers';
@@ -27,6 +27,7 @@ export default function Habits() {
   const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newHabit, setNewHabit] = useState({
     name: '',
     category: 'Health',
@@ -66,23 +67,63 @@ export default function Habits() {
   const handleAddHabit = async (e) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'habits'), {
-        ...newHabit,
-        userId: user.uid,
-        createdAt: new Date().toISOString(),
-        completions: {},
-        currentStreak: 0,
-        bestStreak: 0,
-        totalCompletions: 0
-      });
-      toast.success('Habit created!');
+      if (editingId) {
+        await updateDoc(doc(db, 'habits', editingId), {
+          name: newHabit.name,
+          category: newHabit.category,
+          frequency: newHabit.frequency,
+          reminder: newHabit.reminder
+        });
+        toast.success('Habit updated!');
+      } else {
+        await addDoc(collection(db, 'habits'), {
+          ...newHabit,
+          userId: user.uid,
+          createdAt: new Date().toISOString(),
+          completions: {},
+          currentStreak: 0,
+          bestStreak: 0,
+          totalCompletions: 0
+        });
+        toast.success('Habit created!');
+      }
       setShowAdd(false);
+      setEditingId(null);
       setNewHabit({ name: '', category: 'Health', frequency: 'daily', reminder: true });
       loadHabits();
     } catch (error) {
-      console.error('Error adding habit:', error);
-      toast.error('Failed to create habit');
+      console.error('Error saving habit:', error);
+      toast.error('Failed to save habit');
     }
+  };
+
+  const handleDeleteHabit = async (habitId) => {
+    if (!window.confirm('Are you sure you want to delete this habit? This action cannot be undone.')) return;
+    try {
+      await deleteDoc(doc(db, 'habits', habitId));
+      toast.success('Habit deleted');
+      loadHabits();
+    } catch (error) {
+      console.error('Error deleting habit:', error);
+      toast.error('Failed to delete habit');
+    }
+  };
+
+  const handleEditHabit = (habit) => {
+    setEditingId(habit.id);
+    setNewHabit({
+      name: habit.name,
+      category: habit.category,
+      frequency: habit.frequency,
+      reminder: habit.reminder !== undefined ? habit.reminder : true
+    });
+    setShowAdd(true);
+  };
+
+  const handleCancel = () => {
+    setShowAdd(false);
+    setEditingId(null);
+    setNewHabit({ name: '', category: 'Health', frequency: 'daily', reminder: true });
   };
 
   const handleToggleCompletion = async (habitId, date) => {
@@ -209,7 +250,7 @@ export default function Habits() {
             <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Habit Tracker</h1>
             <p className="text-slate-400">Build lasting habits with daily tracking</p>
           </div>
-          <Dialog open={showAdd} onOpenChange={setShowAdd}>
+          <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) handleCancel(); }}>
             <DialogTrigger asChild>
               <Button
                 data-testid="add-habit-button"
@@ -221,7 +262,7 @@ export default function Habits() {
             </DialogTrigger>
             <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">Create New Habit</DialogTitle>
+                <DialogTitle className="text-slate-200">{editingId ? 'Edit Habit' : 'Create New Habit'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddHabit} className="space-y-4">
                 <div>
@@ -266,9 +307,15 @@ export default function Habits() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" className="w-full bg-violet-600 hover:bg-violet-500">
-                  Create Habit
-                </Button>
+                <div className="flex gap-3">
+                  <Button type="submit" className="flex-1 bg-violet-600 hover:bg-violet-500">
+                    {editingId ? 'Update Habit' : 'Create Habit'}
+                  </Button>
+                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -348,6 +395,26 @@ export default function Habits() {
                         <span className="px-3 py-1 rounded-full bg-violet-500/20 text-violet-400 text-xs font-medium">
                           {habit.category}
                         </span>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditHabit(habit)}
+                          className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10"
+                        >
+                          <Edit2 className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteHabit(habit.id)}
+                          className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Delete
+                        </Button>
                       </div>
                       <div className="flex items-center gap-4 text-sm">
                         <div className="flex items-center gap-2">

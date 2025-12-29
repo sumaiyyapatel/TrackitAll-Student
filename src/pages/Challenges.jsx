@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { Trophy, Plus, Users, Calendar, Flag, Award } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, orderBy } from 'firebase/firestore';
+import { Trophy, Plus, Users, Calendar, Flag, Award, Trash2, Edit2, X } from 'lucide-react';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, orderBy, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ export default function Challenges() {
   const { user, addPoints } = useStore();
   const [challenges, setChallenges] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newChallenge, setNewChallenge] = useState({
     title: '',
     type: 'fitness',
@@ -74,34 +75,78 @@ export default function Challenges() {
       const endDate = new Date(newChallenge.startDate);
       endDate.setDate(endDate.getDate() + parseInt(newChallenge.duration));
 
-      await addDoc(collection(db, 'challenges'), {
-        title: newChallenge.title || challengeType.label,
-        type: newChallenge.type,
-        description: challengeType.description,
-        goal: newChallenge.goal,
-        duration: parseInt(newChallenge.duration),
-        startDate: newChallenge.startDate,
-        endDate: endDate.toISOString(),
-        createdBy: user.uid,
-        createdByName: user.displayName,
-        participants: {
-          [user.uid]: {
-            name: user.displayName,
-            progress: 0,
-            joined: new Date().toISOString()
-          }
-        },
-        status: 'active',
-        winner: null
-      });
+      if (editingId) {
+        await updateDoc(doc(db, 'challenges', editingId), {
+          title: newChallenge.title || challengeType.label,
+          type: newChallenge.type,
+          description: challengeType.description,
+          goal: newChallenge.goal,
+          duration: parseInt(newChallenge.duration),
+          startDate: newChallenge.startDate,
+          endDate: endDate.toISOString()
+        });
+        toast.success('Challenge updated!');
+      } else {
+        await addDoc(collection(db, 'challenges'), {
+          title: newChallenge.title || challengeType.label,
+          type: newChallenge.type,
+          description: challengeType.description,
+          goal: newChallenge.goal,
+          duration: parseInt(newChallenge.duration),
+          startDate: newChallenge.startDate,
+          endDate: endDate.toISOString(),
+          createdBy: user.uid,
+          createdByName: user.displayName,
+          participants: {
+            [user.uid]: {
+              name: user.displayName,
+              progress: 0,
+              joined: new Date().toISOString()
+            }
+          },
+          status: 'active',
+          winner: null
+        });
+        toast.success('Challenge created!');
+      }
       
-      toast.success('Challenge created!');
       setShowCreate(false);
+      setEditingId(null);
       setNewChallenge({ title: '', type: 'fitness', goal: '', duration: '30', startDate: new Date().toISOString().split('T')[0] });
       loadChallenges();
     } catch (error) {
-      toast.error('Failed to create challenge');
+      toast.error('Failed to save challenge');
     }
+  };
+
+  const handleDeleteChallenge = async (challengeId) => {
+    if (!window.confirm('Are you sure you want to delete this challenge? This action cannot be undone.')) return;
+    try {
+      await deleteDoc(doc(db, 'challenges', challengeId));
+      toast.success('Challenge deleted');
+      loadChallenges();
+    } catch (error) {
+      console.error('Error deleting challenge:', error);
+      toast.error('Failed to delete challenge');
+    }
+  };
+
+  const handleEditChallenge = (challenge) => {
+    setEditingId(challenge.id);
+    setNewChallenge({
+      title: challenge.title,
+      type: challenge.type,
+      goal: challenge.goal,
+      duration: challenge.duration.toString(),
+      startDate: challenge.startDate ? new Date(challenge.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+    });
+    setShowCreate(true);
+  };
+
+  const handleCancel = () => {
+    setShowCreate(false);
+    setEditingId(null);
+    setNewChallenge({ title: '', type: 'fitness', goal: '', duration: '30', startDate: new Date().toISOString().split('T')[0] });
   };
 
   const handleJoinChallenge = async (challengeId) => {
@@ -176,7 +221,7 @@ export default function Challenges() {
             <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Challenges 🏆</h1>
             <p className="text-slate-400">Compete with friends and achieve your goals</p>
           </div>
-          <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) handleCancel(); }}>
             <DialogTrigger asChild>
               <Button data-testid="create-challenge-button" className="bg-amber-600 hover:bg-amber-500">
                 <Plus className="w-4 h-4 mr-2" />
@@ -185,7 +230,7 @@ export default function Challenges() {
             </DialogTrigger>
             <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">Create New Challenge</DialogTitle>
+                <DialogTitle className="text-slate-200">{editingId ? 'Edit Challenge' : 'Create New Challenge'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreateChallenge} className="space-y-4">
                 <div>
@@ -245,9 +290,15 @@ export default function Challenges() {
                     className="bg-slate-950 border-slate-800 text-slate-200"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-500">
-                  Create Challenge
-                </Button>
+                <div className="flex gap-3">
+                  <Button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-500">
+                    {editingId ? 'Update Challenge' : 'Create Challenge'}
+                  </Button>
+                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -321,14 +372,36 @@ export default function Challenges() {
                     className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
                   >
                     <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-xl font-bold mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          {challenge.title}
-                        </h3>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            {challenge.title}
+                          </h3>
+                          {challenge.createdBy === user.uid && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditChallenge(challenge)}
+                                className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteChallenge(challenge.id)}
+                                className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                         <p className="text-sm text-slate-400">{challenge.description}</p>
-                      </div>
-                      <div className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-medium">
-                        {challenge.type}
+                        <div className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-medium inline-block mt-2">
+                          {challenge.type}
+                        </div>
                       </div>
                     </div>
 

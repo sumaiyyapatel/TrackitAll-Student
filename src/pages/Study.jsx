@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { BookOpen, Plus, Clock, TrendingUp, GraduationCap, Target, Timer } from 'lucide-react';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { BookOpen, Plus, Clock, TrendingUp, GraduationCap, Target, Timer, Trash2, Edit2, X } from 'lucide-react';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ export default function Study() {
   const [loading, setLoading] = useState(true);
   const [showAddSession, setShowAddSession] = useState(false);
   const [showAddExam, setShowAddExam] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [editingExamId, setEditingExamId] = useState(null);
   const [pomodoroActive, setPomodoroActive] = useState(false);
   const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
   const [newSession, setNewSession] = useState({
@@ -86,39 +88,117 @@ export default function Study() {
   const handleAddSession = async (e) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'study_sessions'), {
-        ...newSession,
-        duration: parseInt(newSession.duration),
-        date: new Date().toISOString(),
-        userId: user.uid
-      });
-      addPoints(POINTS.LOG_DATA);
-      toast.success(`+${POINTS.LOG_DATA} XP! Study session logged`);
+      if (editingSessionId) {
+        await updateDoc(doc(db, 'study_sessions', editingSessionId), {
+          subject: newSession.subject,
+          duration: parseInt(newSession.duration),
+          topic: newSession.topic,
+          difficulty: newSession.difficulty
+        });
+        toast.success('Study session updated!');
+      } else {
+        await addDoc(collection(db, 'study_sessions'), {
+          ...newSession,
+          duration: parseInt(newSession.duration),
+          date: new Date().toISOString(),
+          userId: user.uid
+        });
+        addPoints(POINTS.LOG_DATA);
+        toast.success(`+${POINTS.LOG_DATA} XP! Study session logged`);
+      }
       setShowAddSession(false);
+      setEditingSessionId(null);
       setNewSession({ subject: '', duration: '', topic: '', difficulty: 'medium' });
       loadData();
     } catch (error) {
-      console.error('Error adding session:', error);
-      toast.error('Failed to log study session');
+      console.error('Error saving session:', error);
+      toast.error('Failed to save study session');
     }
   };
 
   const handleAddExam = async (e) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'exams'), {
-        ...newExam,
-        userId: user.uid,
-        createdAt: new Date().toISOString()
-      });
-      toast.success('Exam added!');
+      if (editingExamId) {
+        await updateDoc(doc(db, 'exams', editingExamId), {
+          subject: newExam.subject,
+          date: newExam.date,
+          syllabus: newExam.syllabus
+        });
+        toast.success('Exam updated!');
+      } else {
+        await addDoc(collection(db, 'exams'), {
+          ...newExam,
+          userId: user.uid,
+          createdAt: new Date().toISOString()
+        });
+        toast.success('Exam added!');
+      }
       setShowAddExam(false);
+      setEditingExamId(null);
       setNewExam({ subject: '', date: '', syllabus: '' });
       loadData();
     } catch (error) {
-      console.error('Error adding exam:', error);
-      toast.error('Failed to add exam');
+      console.error('Error saving exam:', error);
+      toast.error('Failed to save exam');
     }
+  };
+
+  const handleDeleteSession = async (sessionId) => {
+    if (!window.confirm('Are you sure you want to delete this study session?')) return;
+    try {
+      await deleteDoc(doc(db, 'study_sessions', sessionId));
+      toast.success('Study session deleted');
+      loadData();
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast.error('Failed to delete session');
+    }
+  };
+
+  const handleDeleteExam = async (examId) => {
+    if (!window.confirm('Are you sure you want to delete this exam?')) return;
+    try {
+      await deleteDoc(doc(db, 'exams', examId));
+      toast.success('Exam deleted');
+      loadData();
+    } catch (error) {
+      console.error('Error deleting exam:', error);
+      toast.error('Failed to delete exam');
+    }
+  };
+
+  const handleEditSession = (session) => {
+    setEditingSessionId(session.id);
+    setNewSession({
+      subject: session.subject,
+      duration: session.duration.toString(),
+      topic: session.topic || '',
+      difficulty: session.difficulty || 'medium'
+    });
+    setShowAddSession(true);
+  };
+
+  const handleEditExam = (exam) => {
+    setEditingExamId(exam.id);
+    setNewExam({
+      subject: exam.subject,
+      date: exam.date ? new Date(exam.date).toISOString().split('T')[0] : '',
+      syllabus: exam.syllabus || ''
+    });
+    setShowAddExam(true);
+  };
+
+  const handleCancelSession = () => {
+    setShowAddSession(false);
+    setEditingSessionId(null);
+    setNewSession({ subject: '', duration: '', topic: '', difficulty: 'medium' });
+  };
+
+  const handleCancelExam = () => {
+    setShowAddExam(false);
+    setEditingExamId(null);
+    setNewExam({ subject: '', date: '', syllabus: '' });
   };
 
   const startPomodoro = () => {
@@ -267,7 +347,7 @@ export default function Study() {
           <TabsContent value="sessions">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Study Sessions</h2>
-              <Dialog open={showAddSession} onOpenChange={setShowAddSession}>
+              <Dialog open={showAddSession} onOpenChange={(open) => { setShowAddSession(open); if (!open) handleCancelSession(); }}>
                 <DialogTrigger asChild>
                   <Button data-testid="add-session-button" className="bg-violet-600 hover:bg-violet-500">
                     <Plus className="w-4 h-4 mr-2" />
@@ -276,7 +356,7 @@ export default function Study() {
                 </DialogTrigger>
                 <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle className="text-slate-200">Log Study Session</DialogTitle>
+                    <DialogTitle className="text-slate-200">{editingSessionId ? 'Edit Study Session' : 'Log Study Session'}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddSession} className="space-y-4">
                     <div>
@@ -310,9 +390,15 @@ export default function Study() {
                         className="bg-slate-950 border-slate-800 text-slate-200"
                       />
                     </div>
-                    <Button type="submit" className="w-full bg-violet-600 hover:bg-violet-500">
-                      Log Session
-                    </Button>
+                    <div className="flex gap-3">
+                      <Button type="submit" className="flex-1 bg-violet-600 hover:bg-violet-500">
+                        {editingSessionId ? 'Update Session' : 'Log Session'}
+                      </Button>
+                      <Button type="button" onClick={handleCancelSession} variant="outline" className="flex-1 border-white/10">
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </div>
                   </form>
                 </DialogContent>
               </Dialog>
@@ -334,13 +420,33 @@ export default function Study() {
                   <div
                     key={session.id}
                     data-testid={`session-${session.id}`}
-                    className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all"
+                    className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
                   >
                     <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-bold text-lg mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          {session.subject}
-                        </h4>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold text-lg" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            {session.subject}
+                          </h4>
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditSession(session)}
+                              className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteSession(session.id)}
+                              className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
                         {session.topic && <p className="text-sm text-slate-400 mb-2">{session.topic}</p>}
                         <p className="text-xs text-slate-500">{formatDate(session.date)}</p>
                       </div>
@@ -357,7 +463,7 @@ export default function Study() {
           <TabsContent value="exams">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Upcoming Exams</h2>
-              <Dialog open={showAddExam} onOpenChange={setShowAddExam}>
+              <Dialog open={showAddExam} onOpenChange={(open) => { setShowAddExam(open); if (!open) handleCancelExam(); }}>
                 <DialogTrigger asChild>
                   <Button data-testid="add-exam-button" className="bg-amber-600 hover:bg-amber-500">
                     <Plus className="w-4 h-4 mr-2" />
@@ -366,7 +472,7 @@ export default function Study() {
                 </DialogTrigger>
                 <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle className="text-slate-200">Add Exam</DialogTitle>
+                    <DialogTitle className="text-slate-200">{editingExamId ? 'Edit Exam' : 'Add Exam'}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddExam} className="space-y-4">
                     <div>
@@ -399,9 +505,15 @@ export default function Study() {
                         className="bg-slate-950 border-slate-800 text-slate-200"
                       />
                     </div>
-                    <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-500">
-                      Add Exam
-                    </Button>
+                    <div className="flex gap-3">
+                      <Button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-500">
+                        {editingExamId ? 'Update Exam' : 'Add Exam'}
+                      </Button>
+                      <Button type="button" onClick={handleCancelExam} variant="outline" className="flex-1 border-white/10">
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </div>
                   </form>
                 </DialogContent>
               </Dialog>
@@ -425,17 +537,37 @@ export default function Study() {
                     <div
                       key={exam.id}
                       data-testid={`exam-${exam.id}`}
-                      className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
+                      className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-amber-500/30 transition-all group"
                     >
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                          <GraduationCap className="w-5 h-5 text-amber-400" />
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                            <GraduationCap className="w-5 h-5 text-amber-400" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                              {exam.subject}
+                            </h4>
+                            {exam.syllabus && <p className="text-xs text-slate-500">{exam.syllabus}</p>}
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-semibold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                            {exam.subject}
-                          </h4>
-                          {exam.syllabus && <p className="text-xs text-slate-500">{exam.syllabus}</p>}
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditExam(exam)}
+                            className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteExam(exam.id)}
+                            className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                         </div>
                       </div>
                       <div className="flex items-center justify-between pt-3 border-t border-white/5">
