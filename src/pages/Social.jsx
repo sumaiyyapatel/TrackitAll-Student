@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { DataCard } from '@/components/cards/DataCard';
 import { formatDate } from '@/utils/helpers';
 
 export default function Social() {
@@ -202,7 +203,7 @@ export default function Social() {
             <DialogTrigger asChild>
               <Button
                 data-testid="add-friend-button"
-                className="bg-violet-600 hover:bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.5)]"
+                className="bg-violet-600 hover:bg-violet-500 "
               >
                 <UserPlus className="w-4 h-4 mr-2" />
                 Add Friend
@@ -238,43 +239,21 @@ export default function Social() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Friends</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{friends.length}</h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-violet-500 flex items-center justify-center shadow-lg">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Your Level</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {userStats.level}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg">
-                <Trophy className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Requests</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{friendRequests.length}</h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-600 to-pink-500 flex items-center justify-center shadow-lg">
-                <UserPlus className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
+          <DataCard
+            title="Friends"
+            value={friends.length}
+            icon={Users}
+          />
+          <DataCard
+            title="Your Level"
+            value={userStats.level}
+            icon={Trophy}
+          />
+          <DataCard
+            title="Requests"
+            value={friendRequests.length}
+            icon={UserPlus}
+          />
         </div>
 
         {/* Friend Requests */}
@@ -286,10 +265,10 @@ export default function Social() {
                 <div
                   key={request.id}
                   data-testid={`friend-request-${request.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-4 flex items-center justify-between"
+                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-semibold">
+                    <div className="w-10 h-10 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white font-semibold">
                       {request.user1Name?.charAt(0) || 'U'}
                     </div>
                     <div>
@@ -309,7 +288,7 @@ export default function Social() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleRejectRequest(request.id)}
-                      className="border-white/10 hover:bg-rose-500/10"
+                      className="border-white/10 hover:bg-danger/10"
                     >
                       <X className="w-4 h-4" />
                     </Button>
@@ -324,7 +303,7 @@ export default function Social() {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Your Friends</h2>
           {friends.length === 0 ? (
-            <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
+            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
               <Users className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No friends yet</h3>
               <p className="text-slate-500 mb-6">Add friends to compete and motivate each other</p>
@@ -344,10 +323,10 @@ export default function Social() {
                   <div
                     key={friendship.id}
                     data-testid={`friend-${friendship.id}`}
-                    className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
+                    className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
                   >
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-xl font-semibold">
+                      <div className="w-12 h-12 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white text-xl font-semibold">
                         {friendName?.charAt(0) || 'F'}
                       </div>
                       <div>
@@ -355,7 +334,7 @@ export default function Social() {
                         <p className="text-xs text-slate-500">Level {friendData?.level || 1}</p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                    <div className="flex items-center justify-between pt-3 border-t border-white/10">
                       <span className="text-xs text-slate-400">Points</span>
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold text-amber-400">{friendData?.points || 0}</span>
@@ -363,7 +342,7 @@ export default function Social() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleRemoveFriend(friendship.id)}
-                          className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="border-danger/50 text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>

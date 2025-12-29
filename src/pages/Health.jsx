@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/helpers';
 import { POINTS } from '@/utils/gamification';
+import { DataCard } from '@/components/cards/DataCard';
 
 export default function Health() {
   const { user, addPoints } = useStore();
@@ -177,7 +178,7 @@ export default function Health() {
             <DialogTrigger asChild>
               <Button
                 data-testid="add-health-entry-button"
-                className="bg-pink-600 hover:bg-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.5)]"
+                className="bg-[#8b5cf6] hover:bg-[#7c3aed] "
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Log Health Data
@@ -188,7 +189,7 @@ export default function Health() {
                 <DialogTitle className="text-slate-200">{editingId ? 'Edit Health Entry' : 'Log Health Data'}</DialogTitle>
               </DialogHeader>
               <Tabs value={newEntry.type} onValueChange={(val) => setNewEntry({ ...newEntry, type: val })}>
-                <TabsList className="grid w-full grid-cols-3 bg-slate-950">
+                <TabsList className="grid w-full grid-cols-3 bg-bg-card">
                   <TabsTrigger value="workout" data-testid="tab-workout">Workout</TabsTrigger>
                   <TabsTrigger value="sleep" data-testid="tab-sleep">Sleep</TabsTrigger>
                   <TabsTrigger value="meal" data-testid="tab-meal">Meal</TabsTrigger>
@@ -204,13 +205,13 @@ export default function Health() {
                         onChange={(e) => setNewEntry({ ...newEntry, duration: e.target.value })}
                         required
                         placeholder="30"
-                        className="bg-slate-950 border-slate-800 text-slate-200"
+                        className="bg-bg-card border-slate-800 text-slate-200"
                       />
                     </div>
                     <div>
                       <Label className="text-slate-300">Intensity</Label>
                       <Select value={newEntry.intensity} onValueChange={(val) => setNewEntry({ ...newEntry, intensity: val })}>
-                        <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                        <SelectTrigger className="bg-bg-card border-slate-800 text-slate-200">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-slate-900 border-white/10">
@@ -228,7 +229,7 @@ export default function Health() {
                         value={newEntry.calories}
                         onChange={(e) => setNewEntry({ ...newEntry, calories: e.target.value })}
                         placeholder="200"
-                        className="bg-slate-950 border-slate-800 text-slate-200"
+                        className="bg-bg-card border-slate-800 text-slate-200"
                       />
                     </div>
                     <div>
@@ -238,7 +239,7 @@ export default function Health() {
                         value={newEntry.description}
                         onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
                         placeholder="Morning run"
-                        className="bg-slate-950 border-slate-800 text-slate-200"
+                        className="bg-bg-card border-slate-800 text-slate-200"
                       />
                     </div>
                   </TabsContent>
@@ -254,7 +255,7 @@ export default function Health() {
                         onChange={(e) => setNewEntry({ ...newEntry, hours: e.target.value })}
                         required
                         placeholder="7.5"
-                        className="bg-slate-950 border-slate-800 text-slate-200"
+                        className="bg-bg-card border-slate-800 text-slate-200"
                       />
                     </div>
                     <div>
@@ -267,7 +268,7 @@ export default function Health() {
                         value={newEntry.quality}
                         onChange={(e) => setNewEntry({ ...newEntry, quality: e.target.value })}
                         required
-                        className="bg-slate-950 border-slate-800 text-slate-200"
+                        className="bg-bg-card border-slate-800 text-slate-200"
                       />
                     </div>
                     <div>
@@ -277,7 +278,7 @@ export default function Health() {
                         value={newEntry.description}
                         onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
                         placeholder="Slept well"
-                        className="bg-slate-950 border-slate-800 text-slate-200"
+                        className="bg-bg-card border-slate-800 text-slate-200"
                       />
                     </div>
                   </TabsContent>
@@ -286,7 +287,7 @@ export default function Health() {
                     <div>
                       <Label className="text-slate-300">Meal Type</Label>
                       <Select value={newEntry.intensity} onValueChange={(val) => setNewEntry({ ...newEntry, intensity: val })}>
-                        <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                        <SelectTrigger className="bg-bg-card border-slate-800 text-slate-200">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-slate-900 border-white/10">
@@ -305,7 +306,7 @@ export default function Health() {
                         onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
                         required
                         placeholder="Oats with fruits"
-                        className="bg-slate-950 border-slate-800 text-slate-200"
+                        className="bg-bg-card border-slate-800 text-slate-200"
                       />
                     </div>
                     <div>
@@ -316,13 +317,13 @@ export default function Health() {
                         value={newEntry.calories}
                         onChange={(e) => setNewEntry({ ...newEntry, calories: e.target.value })}
                         placeholder="400"
-                        className="bg-slate-950 border-slate-800 text-slate-200"
+                        className="bg-bg-card border-slate-800 text-slate-200"
                       />
                     </div>
                   </TabsContent>
                   
                   <div className="flex gap-3">
-                    <Button type="submit" className="flex-1 bg-pink-600 hover:bg-pink-500">
+                    <Button type="submit" className="flex-1 bg-[#8b5cf6] hover:bg-[#7c3aed]">
                       {editingId ? 'Update Entry' : 'Log Entry'}
                     </Button>
                     <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
@@ -338,55 +339,32 @@ export default function Health() {
 
         {/* Weekly Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">This Week Workouts</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{stats.workouts}</h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-600 to-pink-500 flex items-center justify-center shadow-lg">
-                <Activity className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">sessions completed</p>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Avg Sleep</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{stats.avgSleep}h</h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-violet-500 flex items-center justify-center shadow-lg">
-                <Moon className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">per night</p>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Calories Burned</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{stats.totalCalories}</h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center shadow-lg">
-                <Heart className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">this week</p>
-          </div>
+          <DataCard
+            title="This Week Workouts"
+            value={stats.workouts}
+            icon={Activity}
+          />
+          <DataCard
+            title="Avg Sleep"
+            value={`${stats.avgSleep}h`}
+            icon={Moon}
+          />
+          <DataCard
+            title="Calories Burned"
+            value={stats.totalCalories}
+            icon={Heart}
+          />
         </div>
 
         {/* Recent Activity */}
         <div>
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Activity</h2>
           {healthData.length === 0 ? (
-            <div className="text-center py-20 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
+            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
               <Heart className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No health data logged yet</h3>
               <p className="text-slate-500 mb-6">Start tracking your health journey</p>
-              <Button onClick={() => setShowAdd(true)} className="bg-pink-600 hover:bg-pink-500">
+              <Button onClick={() => setShowAdd(true)} className="bg-[#8b5cf6] hover:bg-[#7c3aed]">
                 <Plus className="w-4 h-4 mr-2" />
                 Log Your First Entry
               </Button>
@@ -397,15 +375,15 @@ export default function Health() {
                 <div
                   key={entry.id}
                   data-testid={`health-entry-${entry.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
+                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4 flex-1">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        entry.type === 'workout' ? 'bg-pink-500/20' :
+                        entry.type === 'workout' ? 'bg-[#8b5cf6]/20' :
                         entry.type === 'sleep' ? 'bg-violet-500/20' : 'bg-emerald-500/20'
                       }`}>
-                        {entry.type === 'workout' && <Activity className="w-6 h-6 text-pink-400" />}
+                        {entry.type === 'workout' && <Activity className="w-6 h-6 text-[#8b5cf6]" />}
                         {entry.type === 'sleep' && <Moon className="w-6 h-6 text-violet-400" />}
                         {entry.type === 'meal' && <Utensils className="w-6 h-6 text-emerald-400" />}
                       </div>
@@ -420,7 +398,7 @@ export default function Health() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleEditEntry(entry)}
-                              className="border-pink-500/50 text-pink-400 hover:bg-pink-500/10"
+                              className="border-[#8b5cf6]/50 text-[#8b5cf6] hover:bg-[#8b5cf6]/10"
                             >
                               <Edit2 className="w-3 h-3" />
                             </Button>
@@ -428,7 +406,7 @@ export default function Health() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleDeleteEntry(entry.id)}
-                              className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                              className="border-danger/50 text-danger hover:bg-danger/10"
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -441,7 +419,7 @@ export default function Health() {
                     <div className="text-right">
                       {entry.type === 'workout' && (
                         <div>
-                          <p className="text-2xl font-bold text-pink-400">{entry.duration}min</p>
+                          <p className="text-2xl font-bold text-[#8b5cf6]">{entry.duration}min</p>
                           <p className="text-sm text-slate-500">{entry.calories || 0} cal</p>
                         </div>
                       )}

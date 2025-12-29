@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/utils/helpers';
+import { DataCard } from '@/components/cards/DataCard';
 
 const FREQUENCIES = [
   { value: 'daily', label: 'Daily' },
@@ -317,40 +318,25 @@ export default function RecurringExpenses() {
 
         {/* Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Monthly Total</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                  {formatCurrency(getMonthlyTotal())}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">recurring expenses</p>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Yearly Total</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                  {formatCurrency(getYearlyTotal())}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-600 to-rose-500 flex items-center justify-center shadow-lg">
+          <DataCard
+            title="Monthly Total"
+            value={formatCurrency(getMonthlyTotal())}
+            icon={Calendar}
+          />
+          <DataCard
+            title="Yearly Total"
+            value={formatCurrency(getYearlyTotal())}
+            icon={RefreshCw}
+          />
+              <div className="w-12 h-12 rounded-xl bg-danger flex items-center justify-center">
                 <RefreshCw className="w-6 h-6 text-white" />
               </div>
             </div>
             <p className="text-sm text-slate-500">annual commitment</p>
           </div>
-        </div>
-
-        {/* Recurring List */}
+               {/* Recurring List */}
         {recurring.length === 0 ? (
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-12 text-center">
+          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-12 text-center">
             <RefreshCw className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
             <h3 className="text-xl font-semibold mb-2 text-slate-400">No recurring expenses</h3>
             <p className="text-slate-500 mb-6">Add subscriptions and bills to track automatically</p>
@@ -372,7 +358,7 @@ export default function RecurringExpenses() {
                 <div
                   key={exp.id}
                   data-testid={`recurring-${exp.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
+                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -430,7 +416,7 @@ export default function RecurringExpenses() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDelete(exp.id)}
-                        className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                        className="border-danger/50 text-danger hover:bg-danger/10"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -441,7 +427,6 @@ export default function RecurringExpenses() {
             })}
           </div>
         )}
-      </div>
     </Layout>
   );
 }

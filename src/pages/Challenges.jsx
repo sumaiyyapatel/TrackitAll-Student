@@ -14,6 +14,9 @@ import { toast } from 'sonner';
 import { calculateDaysRemaining, formatDate } from '@/utils/helpers';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { POINTS } from '@/utils/gamification';
+import { DataCard } from '@/components/cards/DataCard';
+import { Celebration } from '@/components/ui/Celebration';
+
 
 const CHALLENGE_TYPES = [
   { value: 'fitness', label: '30-Day Fitness Challenge', description: 'Exercise every day for 30 days' },
@@ -28,6 +31,8 @@ export default function Challenges() {
   const [challenges, setChallenges] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState('');
   const [newChallenge, setNewChallenge] = useState({
     title: '',
     type: 'fitness',
@@ -53,13 +58,13 @@ export default function Challenges() {
       );
       const challengesSnap = await getDocs(challengesQuery);
       const challengesData = challengesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
+
       // Filter challenges where user is participant or creator
-      const myChallenges = challengesData.filter(challenge => 
-        challenge.createdBy === user.uid || 
+      const myChallenges = challengesData.filter(challenge =>
+        challenge.createdBy === user.uid ||
         (challenge.participants && challenge.participants[user.uid])
       );
-      
+
       setChallenges(myChallenges);
     } catch (error) {
       toast.error('Failed to load challenges');
@@ -109,7 +114,7 @@ export default function Challenges() {
         });
         toast.success('Challenge created!');
       }
-      
+
       setShowCreate(false);
       setEditingId(null);
       setNewChallenge({ title: '', type: 'fitness', goal: '', duration: '30', startDate: new Date().toISOString().split('T')[0] });
@@ -153,7 +158,7 @@ export default function Challenges() {
     try {
       const challengeRef = doc(db, 'challenges', challengeId);
       const challenge = challenges.find(c => c.id === challengeId);
-      
+
       await updateDoc(challengeRef, {
         [`participants.${user.uid}`]: {
           name: user.displayName,
@@ -161,7 +166,7 @@ export default function Challenges() {
           joined: new Date().toISOString()
         }
       });
-      
+
       toast.success('Joined challenge!');
       loadChallenges();
     } catch (error) {
@@ -174,18 +179,25 @@ export default function Challenges() {
     try {
       const challengeRef = doc(db, 'challenges', challengeId);
       const challenge = challenges.find(c => c.id === challengeId);
-      
+      const oldProgress = challenge.participants && challenge.participants[user.uid]?.progress || 0;
+      const wasCompleted = oldProgress >= 100;
+      const isNowCompleted = newProgress >= 100;
+
       await updateDoc(challengeRef, {
         [`participants.${user.uid}.progress`]: newProgress
       });
 
-      if (newProgress >= 100) {
+      if (isNowCompleted && !wasCompleted) {
         addPoints(POINTS.COMPLETE_GOAL);
+        setCelebrationMessage(`Challenge "${challenge.title}" completed! 🏆`);
+        setShowCelebration(true);
         toast.success(`+${POINTS.COMPLETE_GOAL} XP! Challenge completed! 🏆`);
+      } else if (newProgress >= 80 && newProgress < 100) {
+        toast.success(getProgressHint(newProgress, 100, 'progress'));
       } else {
         toast.success('Progress updated!');
       }
-      
+
       loadChallenges();
     } catch (error) {
       console.error('Error updating progress:', error);
@@ -214,6 +226,11 @@ export default function Challenges() {
 
   return (
     <Layout>
+      <Celebration
+        show={showCelebration}
+        message={celebrationMessage}
+        onComplete={() => setShowCelebration(false)}
+      />
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -306,50 +323,28 @@ export default function Challenges() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Active Challenges</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{activeChallenges.length}</h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg">
-                <Trophy className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Completed</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{completedChallenges.length}</h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center shadow-lg">
-                <Award className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Total Participants</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  {challenges.reduce((sum, c) => sum + Object.keys(c.participants || {}).length, 0)}
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-violet-500 flex items-center justify-center shadow-lg">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
+          <DataCard
+            title="Active Challenges"
+            value={activeChallenges.length}
+            icon={Trophy}
+          />
+          <DataCard
+            title="Completed"
+            value={completedChallenges.length}
+            icon={Award}
+          />
+          <DataCard
+            title="Total Participants"
+            value={challenges.reduce((sum, c) => sum + Object.keys(c.participants || {}).length, 0)}
+            icon={Users}
+          />
         </div>
 
         {/* Active Challenges */}
         <div>
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Active Challenges</h2>
           {activeChallenges.length === 0 ? (
-            <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-12 text-center">
+            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-12 text-center">
               <Trophy className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-slate-400">No active challenges</h3>
               <p className="text-slate-500 mb-6">Create a challenge to compete with friends</p>
@@ -364,12 +359,12 @@ export default function Challenges() {
                 const daysRemaining = calculateDaysRemaining(challenge.endDate);
                 const myProgress = challenge.participants && challenge.participants[user.uid]?.progress || 0;
                 const participantCount = Object.keys(challenge.participants || {}).length;
-                
+
                 return (
                   <div
                     key={challenge.id}
                     data-testid={`challenge-${challenge.id}`}
-                    className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
+                    className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
@@ -391,7 +386,7 @@ export default function Challenges() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleDeleteChallenge(challenge.id)}
-                                className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                                className="border-danger/50 text-danger hover:bg-danger/10"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </Button>
@@ -412,9 +407,8 @@ export default function Challenges() {
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-400">Time remaining:</span>
-                        <span className={`font-semibold ${
-                          daysRemaining <= 7 ? 'text-rose-400' : 'text-emerald-400'
-                        }`}>
+                        <span className={`font-semibold ${daysRemaining <= 7 ? 'text-rose-400' : 'text-emerald-400'
+                          }`}>
                           {daysRemaining} days
                         </span>
                       </div>
@@ -425,11 +419,20 @@ export default function Challenges() {
                     </div>
 
                     <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-slate-400">Your Progress</span>
-                        <span className="text-sm font-bold">{myProgress}%</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-400">Your Progress</span>
+                          <span className="font-semibold">{myProgress}%</span>
+                        </div>
+                        <Progress value={myProgress} />
                       </div>
-                      <Progress value={myProgress} className="h-3" />
+
+                      {myProgress >= 80 && myProgress < 100 && (
+                        <EncouragementMessage
+                          type="progress"
+                          className="mt-2"
+                        />
+                      )}
                     </div>
 
                     <div className="flex gap-2">
@@ -466,7 +469,7 @@ export default function Challenges() {
               {completedChallenges.map(challenge => (
                 <div
                   key={challenge.id}
-                  className="bg-slate-900/50 backdrop-blur-md border border-emerald-500/20 rounded-2xl p-6"
+                  className="bg-bg-card backdrop-blur-md border border-emerald-500/20 rounded-2xl p-6"
                 >
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">

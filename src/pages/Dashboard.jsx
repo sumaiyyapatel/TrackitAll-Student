@@ -1,27 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
-import { StatCard } from '@/components/StatCard';
 import { QuickActions } from '@/components/QuickActions';
 import useStore from '@/store/useStore';
-import { Calendar, Wallet, Heart, Smile, Trophy, TrendingUp } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
+import { Timer, Target, Flame, Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { normalizeDate } from '@/utils/dateNormalizer';
-import { formatCurrency, getGreeting } from '@/utils/helpers';
-import { Progress } from '@/components/ui/progress';
+import { getGreeting } from '@/utils/helpers';
+import { AnimatedProgress } from '@/components/AnimatedProgress';
+import { getProgressHint } from '@/components/EncouragementMessage';
 import Leaderboard from '../components/Leaderboard';
 
 export default function Dashboard() {
   const { user, userStats } = useStore();
-  const [stats, setStats] = useState({
-    attendancePercentage: 0,
-    monthlyExpenses: 0,
-    weeklyWorkouts: 0,
-    avgMood: 0,
-    activeGoals: 0
+  const [metrics, setMetrics] = useState({
+    focus: null, // Pomodoro or active habit
+    thisWeek: 0, // Aggregated metric
+    streaks: userStats.streaks?.attendance || 0
   });
   const [loading, setLoading] = useState(true);
+  const [achievementIndex, setAchievementIndex] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -29,63 +28,85 @@ export default function Dashboard() {
     }
   }, [user]);
 
+  useEffect(() => {
+    // Auto-rotate achievements carousel
+    if (userStats.badges.length > 4) {
+      const interval = setInterval(() => {
+        setAchievementIndex((prev) => (prev + 1) % Math.min(userStats.badges.length, 4));
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [userStats.badges.length]);
+
   const loadDashboardData = async () => {
     try {
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
 
       const toDate = normalizeDate;
 
-      // Attendance (use canonical query + JS filtering)
+      // Check for active Pomodoro (from Study page - we'll check if there's a recent active session)
+      // For now, we'll check for the most active habit instead
+      const habitsSnap = await getDocs(query(collection(db, 'habits'), where('userId', '==', user.uid)));
+      const habits = habitsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      // Get the habit with the highest current streak
+      const activeHabit = habits
+        .filter(h => h.status !== 'archived')
+        .sort((a, b) => (b.currentStreak || 0) - (a.currentStreak || 0))[0];
+
+      // Calculate this week's activities
+      const weekActivities = [];
+      
+      // Attendance this week
       const attendanceSnap = await getDocs(userRecent(db, 'attendance', user.uid, 200));
-      const attendanceDocs = attendanceSnap.docs.map(d => d.data()).filter(d => {
-        const date = toDate(d.date);
-        return date && date >= startOfMonth;
-      });
-      const attendedCount = attendanceDocs.filter(d => d.attended).length;
-      const attendancePercentage = attendanceDocs.length === 0 ? null : Math.round((attendedCount / attendanceDocs.length) * 100);
+      const attendanceThisWeek = attendanceSnap.docs
+        .map(d => d.data())
+        .filter(d => {
+          const date = toDate(d.date);
+          return date && date >= startOfWeek && d.attended;
+        }).length;
 
-      // Expenses
-      // Expenses (canonical query + JS filtering)
+      // Expenses this week
       const expensesSnap = await getDocs(userRecent(db, 'expenses', user.uid, 200));
-      const expensesDocs = expensesSnap.docs.map(d => d.data()).filter(d => {
-        const date = toDate(d.date);
-        return date && date >= startOfMonth;
-      });
-      const monthlyExpenses = expensesDocs.reduce((sum, doc) => sum + (doc.amount || 0), 0);
+      const expensesThisWeek = expensesSnap.docs
+        .map(d => d.data())
+        .filter(d => {
+          const date = toDate(d.date);
+          return date && date >= startOfWeek;
+        }).length;
 
-      // Workouts
-      // Workouts (canonical query + JS filtering)
-      const workoutsSnap = await getDocs(userRecent(db, 'health', user.uid, 200));
-      const workoutsDocs = workoutsSnap.docs.map(d => d.data()).filter(d => {
-        const date = toDate(d.date);
-        return d.type === 'workout' && date && date >= startOfWeek;
-      });
-      const weeklyWorkouts = workoutsDocs.length;
-
-      // Mood
-      // Mood entries (canonical query + JS filtering)
+      // Mood entries this week
       const moodSnap = await getDocs(userRecent(db, 'mood_entries', user.uid, 200));
-      const moodDocs = moodSnap.docs.map(d => d.data()).filter(d => {
-        const date = toDate(d.date);
-        return date && date >= startOfMonth;
-      });
-      const totalMood = moodDocs.reduce((sum, doc) => sum + (doc.mood || 0), 0);
-      const avgMood = moodDocs.length > 0 ? (totalMood / moodDocs.length).toFixed(1) : 0;
+      const moodThisWeek = moodSnap.docs
+        .map(d => d.data())
+        .filter(d => {
+          const date = toDate(d.date);
+          return date && date >= startOfWeek;
+        }).length;
 
-      // Goals
-      // Goals (canonical query + JS filtering)
-      const goalsSnap = await getDocs(userRecent(db, 'goals', user.uid, 200));
-      const goalsDocs = goalsSnap.docs.map(d => d.data()).filter(d => d.status === 'active');
-      const activeGoals = goalsDocs.length;
+      // Study sessions this week
+      const studySnap = await getDocs(userRecent(db, 'study_sessions', user.uid, 200));
+      const studyThisWeek = studySnap.docs
+        .map(d => d.data())
+        .filter(d => {
+          const date = toDate(d.date || d.createdAt);
+          return date && date >= startOfWeek;
+        }).length;
 
-      setStats({
-        attendancePercentage,
-        monthlyExpenses,
-        weeklyWorkouts,
-        avgMood,
-        activeGoals
+      const totalThisWeek = attendanceThisWeek + expensesThisWeek + moodThisWeek + studyThisWeek;
+
+      setMetrics({
+        focus: activeHabit ? {
+          type: 'habit',
+          name: activeHabit.name,
+          streak: activeHabit.currentStreak || 0,
+          icon: '🔥'
+        } : null,
+        thisWeek: totalThisWeek,
+        streaks: userStats.streaks?.attendance || 0
       });
     } catch (error) {
       console.error('Error loading dashboard:', error);
@@ -98,132 +119,172 @@ export default function Dashboard() {
     return (
       <Layout>
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-3/4 mb-3" /><div className="h-8 bg-slate-700 rounded w-full" /></div>
-            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-3/4 mb-3" /><div className="h-8 bg-slate-700 rounded w-full" /></div>
-            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-3/4 mb-3" /><div className="h-8 bg-slate-700 rounded w-full" /></div>
+          <div className="h-32 bg-card/50 rounded-2xl animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-24 bg-card/50 rounded-2xl animate-pulse" />
+            ))}
           </div>
-          <div className="p-6 bg-slate-800 rounded-2xl max-w-7xl mx-auto text-slate-400">Loading your dashboard...</div>
         </div>
       </Layout>
     );
   }
 
+  const displayedBadges = userStats.badges.slice(-4).reverse();
+  const maxStreak = Math.max(
+    userStats.streaks?.attendance || 0,
+    userStats.streaks?.mood || 0,
+    userStats.streaks?.health || 0
+  );
+
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div data-testid="dashboard-header">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
-            {getGreeting()}, {user?.displayName?.split(' ')[0] || 'Student'}! 👋
-          </h1>
-          <p className="text-sm sm:text-base text-slate-400">Here's what's happening with your goals today</p>
-        </div>
-
-        {/* Level Progress */}
-        <div className="bg-gradient-to-r from-violet-600 to-pink-600 rounded-2xl p-6 shadow-[0_0_30px_rgba(139,92,246,0.3)]">
-          <div className="flex items-center justify-between mb-4">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Hero Section */}
+        <div className="bg-gradient-to-br from-violet-600 to-pink-600 rounded-2xl p-6 md:p-8 animate-slide-up">
+          <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-white text-lg font-semibold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                Level {userStats.level}
-              </h3>
-              <p className="text-white/80 text-sm">{userStats.points} / {userStats.level * 100} XP</p>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                {getGreeting()}, {user?.displayName?.split(' ')[0] || 'Student'}! 👋
+              </h1>
+              <p className="text-white/80 text-sm sm:text-base">Level {userStats.level} • {userStats.points} XP</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Trophy className="w-8 h-8 text-amber-300" />
-              <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                {userStats.badges.length}
-              </span>
-            </div>
+            {userStats.badges.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-amber-300" />
+                <span className="text-2xl font-bold text-white">{userStats.badges.length}</span>
+              </div>
+            )}
           </div>
-          <Progress value={(userStats.points % 100)} className="h-3 bg-white/20" />
+          <AnimatedProgress
+            value={userStats.points % 100}
+            max={100}
+            label="Level Progress"
+            hint={getProgressHint(userStats.points % 100, 100, 'milestone')}
+            color="violet"
+            size="large"
+          />
           <p className="text-white/70 text-xs mt-2">
             {100 - (userStats.points % 100)} XP until level {userStats.level + 1}
           </p>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Exactly 4 */}
         <div>
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Quick Actions</h2>
+          <h2 className="text-xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Quick Actions</h2>
           <QuickActions />
         </div>
 
-        {/* Stats Grid */}
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>This Month Overview</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-            <StatCard
-              title="Attendance Rate"
-              value={stats.attendancePercentage === null ? 'N/A' : `${stats.attendancePercentage}%`}
-              icon={Calendar}
-              color="violet"
-              trend="up"
-              trendValue="+5%"
-              testId="stat-attendance"
-            />
-            <StatCard
-              title="Monthly Spending"
-              value={formatCurrency(stats.monthlyExpenses)}
-              icon={Wallet}
-              color="amber"
-              trend="down"
-              trendValue="-12%"
-              testId="stat-spending"
-            />
-            <StatCard
-              title="Weekly Workouts"
-              value={stats.weeklyWorkouts}
-              icon={Heart}
-              color="pink"
-              trend="up"
-              trendValue="+2"
-              testId="stat-workouts"
-            />
-            <StatCard
-              title="Average Mood"
-              value={`${stats.avgMood}/10`}
-              icon={Smile}
-              color="cyan"
-              testId="stat-mood"
-            />
-            <StatCard
-              title="Active Goals"
-              value={stats.activeGoals}
-              icon={TrendingUp}
-              color="emerald"
-              testId="stat-goals"
-            />
-            <StatCard
-              title="Streak Days"
-              value={userStats.streaks.attendance || 0}
-              icon={Trophy}
-              color="rose"
-              testId="stat-streak"
-            />
+        {/* 3 Metric Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Focus Card */}
+          <div className="bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6 hover:border-violet-500/30 transition-all">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground mb-1">Focus</p>
+                {metrics.focus ? (
+                  <>
+                    <h3 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                      {metrics.focus.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {metrics.focus.streak} day streak {metrics.focus.icon}
+                    </p>
+                  </>
+                ) : (
+                  <h3 className="text-lg text-muted-foreground">No active focus</h3>
+                )}
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-violet-600 flex items-center justify-center">
+                {metrics.focus ? (
+                  <Flame className="w-6 h-6 text-white" />
+                ) : (
+                  <Target className="w-6 h-6 text-white" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* This Week Card */}
+          <div className="bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6 hover:border-violet-500/30 transition-all">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground mb-1">This Week</p>
+                <h3 className="text-3xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                  {metrics.thisWeek}
+                </h3>
+                <p className="text-xs text-muted-foreground">Activities logged</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-cyan-500 flex items-center justify-center">
+                <Target className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Streaks Card */}
+          <div className="bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6 hover:border-violet-500/30 transition-all">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground mb-1">Streaks</p>
+                <h3 className="text-3xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                  {maxStreak}
+                </h3>
+                <p className="text-xs text-muted-foreground">Best streak</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-rose-500 flex items-center justify-center">
+                <Flame className="w-6 h-6 text-white" />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Recent Badges */}
-        {userStats.badges.length > 0 && (
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Achievements</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-              {userStats.badges.slice(-4).reverse().map((badge, index) => (
-                <div
-                  key={index}
-                  data-testid={`badge-${badge.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 text-center hover:border-violet-500/30 transition-all"
-                >
-                  <div className="text-4xl mb-2">{badge.icon || '🌟'}</div>
-                  <h4 className="font-semibold text-sm mb-1">{badge.name}</h4>
-                  <p className="text-xs text-slate-500">{badge.description || 'Achievement unlocked!'}</p>
-                </div>
-              ))}
+        {/* Achievements Carousel - Limited to 4 */}
+        {displayedBadges.length > 0 && (
+          <div className="animate-fade-in">
+            <h2 className="text-xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Achievements</h2>
+            <div className="relative">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {displayedBadges.map((badge, index) => (
+                  <div
+                    key={badge.id || index}
+                    data-testid={`badge-${badge.id || index}`}
+                    className={`bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6 text-center hover:border-violet-500/30 transition-all hover:scale-105 animate-slide-up ${
+                      index === achievementIndex ? 'ring-2 ring-violet-500' : ''
+                    }`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <div className="text-4xl mb-2 animate-bounce" style={{ animationDelay: `${index * 0.2}s` }}>
+                      {badge.icon || '🌟'}
+                    </div>
+                    <h4 className="font-semibold text-sm mb-1">{badge.name}</h4>
+                    <p className="text-xs text-muted-foreground">{badge.description || 'Achievement unlocked!'}</p>
+                  </div>
+                ))}
+              </div>
+              {displayedBadges.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setAchievementIndex((prev) => (prev - 1 + displayedBadges.length) % displayedBadges.length)}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                    aria-label="Previous achievement"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setAchievementIndex((prev) => (prev + 1) % displayedBadges.length)}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                    aria-label="Next achievement"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
 
-        <Leaderboard top={10} />
+        {/* Leaderboard - Friends Only, Capped at 10 */}
+        <Leaderboard top={10} friendsOnly={true} />
       </div>
     </Layout>
   );

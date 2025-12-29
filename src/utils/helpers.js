@@ -52,7 +52,7 @@ export const getMoodColor = (mood) => {
   if (mood >= 8) return 'bg-emerald-500';
   if (mood >= 6) return 'bg-cyan-500';
   if (mood >= 4) return 'bg-amber-500';
-  return 'bg-rose-500';
+  return 'bg-danger';
 };
 
 export const getGreeting = () => {
