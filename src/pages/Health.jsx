@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { Heart, Plus, Activity, Moon, Utensils, Droplet } from 'lucide-react';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { Heart, Plus, Activity, Moon, Utensils, Droplet, Trash2, Edit2, X } from 'lucide-react';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { normalizeDate } from '@/utils/dateNormalizer';
@@ -21,6 +21,7 @@ export default function Health() {
   const [healthData, setHealthData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [activeTab, setActiveTab] = useState('workout');
   const [newEntry, setNewEntry] = useState({
     type: 'workout',
@@ -55,30 +56,83 @@ export default function Health() {
   const handleAddEntry = async (e) => {
     e.preventDefault();
     try {
-      const entry = {
-        ...newEntry,
-        date: new Date().toISOString(),
-        userId: user.uid
-      };
-      
-      if (newEntry.type === 'workout') {
-        entry.duration = parseInt(newEntry.duration);
-        entry.calories = parseInt(newEntry.calories);
-      } else if (newEntry.type === 'sleep') {
-        entry.hours = parseFloat(newEntry.hours);
-        entry.quality = parseInt(newEntry.quality);
-      }
+      if (editingId) {
+        const updateData = {};
+        if (newEntry.type === 'workout') {
+          updateData.duration = parseInt(newEntry.duration);
+          updateData.calories = parseInt(newEntry.calories) || 0;
+          updateData.intensity = newEntry.intensity;
+          updateData.description = newEntry.description;
+        } else if (newEntry.type === 'sleep') {
+          updateData.hours = parseFloat(newEntry.hours);
+          updateData.quality = parseInt(newEntry.quality);
+          updateData.description = newEntry.description;
+        } else if (newEntry.type === 'meal') {
+          updateData.intensity = newEntry.intensity; // meal type
+          updateData.description = newEntry.description;
+          updateData.calories = parseInt(newEntry.calories) || 0;
+        }
+        await updateDoc(doc(db, 'health', editingId), updateData);
+        toast.success('Health entry updated!');
+      } else {
+        const entry = {
+          ...newEntry,
+          date: new Date().toISOString(),
+          userId: user.uid
+        };
+        
+        if (newEntry.type === 'workout') {
+          entry.duration = parseInt(newEntry.duration);
+          entry.calories = parseInt(newEntry.calories);
+        } else if (newEntry.type === 'sleep') {
+          entry.hours = parseFloat(newEntry.hours);
+          entry.quality = parseInt(newEntry.quality);
+        }
 
-      await addDoc(collection(db, 'health'), entry);
-      addPoints(POINTS.LOG_HEALTH);
-      toast.success(`+${POINTS.LOG_HEALTH} XP! Health data logged`);
+        await addDoc(collection(db, 'health'), entry);
+        addPoints(POINTS.LOG_HEALTH);
+        toast.success(`+${POINTS.LOG_HEALTH} XP! Health data logged`);
+      }
       setShowAdd(false);
+      setEditingId(null);
       setNewEntry({ type: 'workout', duration: '', intensity: 'medium', description: '', calories: '', hours: '', quality: '7' });
       loadHealthData();
     } catch (error) {
-      console.error('Error adding health entry:', error);
-      toast.error('Failed to log health data');
+      console.error('Error saving health entry:', error);
+      toast.error('Failed to save health data');
     }
+  };
+
+  const handleDeleteEntry = async (entryId) => {
+    if (!window.confirm('Are you sure you want to delete this health entry?')) return;
+    try {
+      await deleteDoc(doc(db, 'health', entryId));
+      toast.success('Health entry deleted');
+      loadHealthData();
+    } catch (error) {
+      console.error('Error deleting health entry:', error);
+      toast.error('Failed to delete health entry');
+    }
+  };
+
+  const handleEditEntry = (entry) => {
+    setEditingId(entry.id);
+    setNewEntry({
+      type: entry.type,
+      duration: entry.duration ? entry.duration.toString() : '',
+      intensity: entry.intensity || 'medium',
+      description: entry.description || '',
+      calories: entry.calories ? entry.calories.toString() : '',
+      hours: entry.hours ? entry.hours.toString() : '',
+      quality: entry.quality ? entry.quality.toString() : '7'
+    });
+    setShowAdd(true);
+  };
+
+  const handleCancel = () => {
+    setShowAdd(false);
+    setEditingId(null);
+    setNewEntry({ type: 'workout', duration: '', intensity: 'medium', description: '', calories: '', hours: '', quality: '7' });
   };
 
   const toDate = normalizeDate;
@@ -119,7 +173,7 @@ export default function Health() {
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Health & Fitness</h1>
             <p className="text-sm sm:text-base text-slate-400">Track workouts, sleep, meals, and wellness</p>
           </div>
-          <Dialog open={showAdd} onOpenChange={setShowAdd}>
+          <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) handleCancel(); }}>
             <DialogTrigger asChild>
               <Button
                 data-testid="add-health-entry-button"
@@ -131,7 +185,7 @@ export default function Health() {
             </DialogTrigger>
             <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">Log Health Data</DialogTitle>
+                <DialogTitle className="text-slate-200">{editingId ? 'Edit Health Entry' : 'Log Health Data'}</DialogTitle>
               </DialogHeader>
               <Tabs value={newEntry.type} onValueChange={(val) => setNewEntry({ ...newEntry, type: val })}>
                 <TabsList className="grid w-full grid-cols-3 bg-slate-950">
@@ -267,9 +321,15 @@ export default function Health() {
                     </div>
                   </TabsContent>
                   
-                  <Button type="submit" className="w-full bg-pink-600 hover:bg-pink-500">
-                    Log Entry
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button type="submit" className="flex-1 bg-pink-600 hover:bg-pink-500">
+                      {editingId ? 'Update Entry' : 'Log Entry'}
+                    </Button>
+                    <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
+                      <X className="w-4 h-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
                 </form>
               </Tabs>
             </DialogContent>
@@ -337,10 +397,10 @@ export default function Health() {
                 <div
                   key={entry.id}
                   data-testid={`health-entry-${entry.id}`}
-                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all"
+                  className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-4 flex-1">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                         entry.type === 'workout' ? 'bg-pink-500/20' :
                         entry.type === 'sleep' ? 'bg-violet-500/20' : 'bg-emerald-500/20'
@@ -349,11 +409,31 @@ export default function Health() {
                         {entry.type === 'sleep' && <Moon className="w-6 h-6 text-violet-400" />}
                         {entry.type === 'meal' && <Utensils className="w-6 h-6 text-emerald-400" />}
                       </div>
-                      <div>
-                        <h4 className="font-semibold text-lg mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          {entry.type === 'workout' ? 'Workout Session' :
-                           entry.type === 'sleep' ? 'Sleep Log' : 'Meal Log'}
-                        </h4>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="font-semibold text-lg" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            {entry.type === 'workout' ? 'Workout Session' :
+                             entry.type === 'sleep' ? 'Sleep Log' : 'Meal Log'}
+                          </h4>
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditEntry(entry)}
+                              className="border-pink-500/50 text-pink-400 hover:bg-pink-500/10"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteEntry(entry.id)}
+                              className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
                         <p className="text-sm text-slate-400 mb-2">{formatDate(entry.date)}</p>
                         {entry.description && <p className="text-slate-300">{entry.description}</p>}
                       </div>

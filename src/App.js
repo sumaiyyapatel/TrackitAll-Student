@@ -5,6 +5,7 @@ import { auth, db } from '@/firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
 import useStore from '@/store/useStore';
 import { Toaster } from 'sonner';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import "@/App.css";
 
 // Pages
@@ -78,25 +79,23 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading TrackitAll...</p>
+      <ThemeProvider>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading TrackitAll...</p>
+          </div>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
   return (
-    <>
+    <ThemeProvider>
       <Toaster 
         position="top-right"
         toastOptions={{
-          style: {
-            background: '#1e293b',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: '#f8fafc',
-          },
+          className: 'toaster',
         }}
       />
         <Routes>
@@ -120,7 +119,7 @@ function App() {
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/auth"} replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-    </>
+    </ThemeProvider>
   );
 }
 

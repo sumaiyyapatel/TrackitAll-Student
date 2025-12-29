@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { Scale, Plus, TrendingUp, TrendingDown, Target } from 'lucide-react';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { Scale, Plus, TrendingUp, TrendingDown, Target, Trash2, Edit2, X } from 'lucide-react';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ export default function WeightTracker() {
   const { user } = useStore();
   const [weightLogs, setWeightLogs] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newWeight, setNewWeight] = useState({ weight: '', goal: '' });
   const [loading, setLoading] = useState(true);
 
@@ -44,19 +45,53 @@ export default function WeightTracker() {
   const handleAddWeight = async (e) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'weight_logs'), {
-        weight: parseFloat(newWeight.weight),
-        goal: newWeight.goal ? parseFloat(newWeight.goal) : null,
-        date: new Date().toISOString(),
-        userId: user.uid
-      });
-      toast.success('Weight logged!');
+      const currentGoal = getGoalWeight();
+      if (editingId) {
+        await updateDoc(doc(db, 'weight_logs', editingId), {
+          weight: parseFloat(newWeight.weight),
+          goal: newWeight.goal ? parseFloat(newWeight.goal) : (currentGoal || null),
+        });
+        toast.success('Weight updated!');
+      } else {
+        await addDoc(collection(db, 'weight_logs'), {
+          weight: parseFloat(newWeight.weight),
+          goal: newWeight.goal ? parseFloat(newWeight.goal) : (currentGoal || null),
+          date: new Date().toISOString(),
+          userId: user.uid
+        });
+        toast.success('Weight logged!');
+      }
       setShowAdd(false);
+      setEditingId(null);
       setNewWeight({ weight: '', goal: '' });
       loadWeightData();
     } catch (error) {
-      console.error('Error adding weight:', error);
-      toast.error('Failed to log weight');
+      console.error('Error saving weight:', error);
+      toast.error('Failed to save weight');
+    }
+  };
+
+  const handleEditLog = (log) => {
+    setEditingId(log.id);
+    setNewWeight({ weight: log.weight.toString(), goal: log.goal ? log.goal.toString() : '' });
+    setShowAdd(true);
+  };
+
+  const handleCancel = () => {
+    setShowAdd(false);
+    setEditingId(null);
+    setNewWeight({ weight: '', goal: '' });
+  };
+
+  const handleDeleteLog = async (logId) => {
+    if (!window.confirm('Are you sure you want to delete this log?')) return;
+    try {
+      await deleteDoc(doc(db, 'weight_logs', logId));
+      toast.success('Log deleted');
+      loadWeightData();
+    } catch (error) {
+      console.error('Error deleting weight log:', error);
+      toast.error('Failed to delete log');
     }
   };
 
@@ -97,7 +132,7 @@ export default function WeightTracker() {
             <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Weight Tracker</h1>
             <p className="text-slate-400">Track your weight journey and progress</p>
           </div>
-          <Dialog open={showAdd} onOpenChange={setShowAdd}>
+          <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) handleCancel(); }}>
             <DialogTrigger asChild>
               <Button data-testid="add-weight-button" className="bg-violet-600 hover:bg-violet-500">
                 <Plus className="w-4 h-4 mr-2" />
@@ -106,7 +141,7 @@ export default function WeightTracker() {
             </DialogTrigger>
             <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">Log Weight</DialogTitle>
+                <DialogTitle className="text-slate-200">{editingId ? 'Edit Weight' : 'Log Weight'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddWeight} className="space-y-4">
                 <div>
@@ -133,9 +168,15 @@ export default function WeightTracker() {
                     className="bg-slate-950 border-slate-800 text-slate-200"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-violet-600 hover:bg-violet-500">
-                  Log Weight
-                </Button>
+                <div className="flex gap-3">
+                  <Button type="submit" className="flex-1 bg-violet-600 hover:bg-violet-500">
+                    {editingId ? 'Update' : 'Log Weight'}
+                  </Button>
+                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -228,10 +269,26 @@ export default function WeightTracker() {
             <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Logs</h2>
             <div className="space-y-3">
               {weightLogs.slice(-10).reverse().map(log => (
-                <div key={log.id} className="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl">
-                  <div>
-                    <p className="font-semibold">{log.weight} kg</p>
-                    <p className="text-xs text-slate-500">{formatDate(log.date)}</p>
+                <div key={log.id} className="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl group">
+                  <div className="flex items-center gap-4">
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleEditLog(log)}
+                        className="p-2 text-slate-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLog(log.id)}
+                        className="p-2 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div>
+                      <p className="font-semibold">{log.weight} kg</p>
+                      <p className="text-xs text-slate-500">{formatDate(log.date)}</p>
+                    </div>
                   </div>
                   {log.goal && (
                     <div className="text-right">

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { Users, Plus, Trophy, TrendingUp, Target, Search, UserPlus, Check, X } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { Users, Plus, Trophy, TrendingUp, Target, Search, UserPlus, Check, X, Trash2 } from 'lucide-react';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -164,6 +164,18 @@ export default function Social() {
     } catch (error) {
       console.error('Error rejecting request:', error);
       toast.error('Failed to reject request');
+    }
+  };
+
+  const handleRemoveFriend = async (friendshipId) => {
+    if (!window.confirm('Are you sure you want to remove this friend?')) return;
+    try {
+      await deleteDoc(doc(db, 'friends', friendshipId));
+      toast.success('Friend removed');
+      loadSocialData();
+    } catch (error) {
+      console.error('Error removing friend:', error);
+      toast.error('Failed to remove friend');
     }
   };
 
@@ -332,7 +344,7 @@ export default function Social() {
                   <div
                     key={friendship.id}
                     data-testid={`friend-${friendship.id}`}
-                    className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all"
+                    className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
                   >
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-xl font-semibold">
@@ -345,7 +357,17 @@ export default function Social() {
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-white/5">
                       <span className="text-xs text-slate-400">Points</span>
-                      <span className="text-lg font-bold text-amber-400">{friendData?.points || 0}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold text-amber-400">{friendData?.points || 0}</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRemoveFriend(friendship.id)}
+                          className="border-rose-500/50 text-rose-400 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );

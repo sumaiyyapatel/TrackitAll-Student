@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Settings as SettingsIcon, Download, Upload, Moon, Sun, Bell, Shield, Database } from 'lucide-react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/config';
@@ -12,6 +13,7 @@ import { toast } from 'sonner';
 
 export default function Settings() {
   const { user } = useStore();
+  const { theme, setTheme } = useTheme();
   const [notifications, setNotifications] = useState({
     attendance: true,
     finance: true,
@@ -19,7 +21,6 @@ export default function Settings() {
     mood: true,
     goals: true
   });
-  const [theme, setTheme] = useState('dark');
   const [exporting, setExporting] = useState(false);
 
   const handleExportData = async () => {
@@ -99,28 +100,32 @@ export default function Settings() {
         {/* Header */}
         <div>
           <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Settings</h1>
-          <p className="text-slate-400">Manage your preferences and data</p>
+          <p className="text-muted-foreground">Manage your preferences and data</p>
         </div>
 
         {/* Appearance */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
-              {theme === 'dark' ? <Moon className="w-5 h-5 text-violet-400" /> : <Sun className="w-5 h-5 text-violet-400" />}
+            <div className="w-10 h-10 rounded-xl bg-violet-500/20 dark:bg-violet-500/20 flex items-center justify-center">
+              {theme === 'dark' || (theme === 'system' && !window.matchMedia('(prefers-color-scheme: light)').matches) ? (
+                <Moon className="w-5 h-5 text-violet-400" />
+              ) : (
+                <Sun className="w-5 h-5 text-violet-400" />
+              )}
             </div>
             <div>
               <h2 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Appearance</h2>
-              <p className="text-sm text-slate-400">Customize how TrackitAll looks</p>
+              <p className="text-sm text-muted-foreground">Customize how TrackitAll looks</p>
             </div>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="text-slate-300">Theme</Label>
+              <Label>Theme</Label>
               <Select value={theme} onValueChange={setTheme}>
-                <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200 w-40">
+                <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-white/10">
+                <SelectContent>
                   <SelectItem value="dark">Dark</SelectItem>
                   <SelectItem value="light">Light</SelectItem>
                   <SelectItem value="system">System</SelectItem>
@@ -131,47 +136,47 @@ export default function Settings() {
         </div>
 
         {/* Notifications */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
               <Bell className="w-5 h-5 text-amber-400" />
             </div>
             <div>
               <h2 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Notifications</h2>
-              <p className="text-sm text-slate-400">Manage notification preferences</p>
+              <p className="text-sm text-muted-foreground">Manage notification preferences</p>
             </div>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="text-slate-300">Attendance Reminders</Label>
+              <Label>Attendance Reminders</Label>
               <Switch
                 checked={notifications.attendance}
                 onCheckedChange={(checked) => setNotifications({ ...notifications, attendance: checked })}
               />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-slate-300">Finance Tracking</Label>
+              <Label>Finance Tracking</Label>
               <Switch
                 checked={notifications.finance}
                 onCheckedChange={(checked) => setNotifications({ ...notifications, finance: checked })}
               />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-slate-300">Health Reminders</Label>
+              <Label>Health Reminders</Label>
               <Switch
                 checked={notifications.health}
                 onCheckedChange={(checked) => setNotifications({ ...notifications, health: checked })}
               />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-slate-300">Mood Check-ins</Label>
+              <Label>Mood Check-ins</Label>
               <Switch
                 checked={notifications.mood}
                 onCheckedChange={(checked) => setNotifications({ ...notifications, mood: checked })}
               />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-slate-300">Goal Updates</Label>
+              <Label>Goal Updates</Label>
               <Switch
                 checked={notifications.goals}
                 onCheckedChange={(checked) => setNotifications({ ...notifications, goals: checked })}
@@ -181,14 +186,14 @@ export default function Settings() {
         </div>
 
         {/* Data Management */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
               <Database className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
               <h2 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Data Management</h2>
-              <p className="text-sm text-slate-400">Export and backup your data</p>
+              <p className="text-sm text-muted-foreground">Export and backup your data</p>
             </div>
           </div>
           <div className="space-y-4">
@@ -202,35 +207,31 @@ export default function Settings() {
                 <Download className="w-4 h-4 mr-2" />
                 {exporting ? 'Exporting...' : 'Export All Data (JSON)'}
               </Button>
-              <p className="text-xs text-slate-500 mt-2">Download all your data in JSON format</p>
+              <p className="text-xs text-muted-foreground mt-2">Download all your data in JSON format</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
+            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border">
               <Button
                 onClick={() => handleExportCSV('attendance')}
                 variant="outline"
-                className="border-white/10"
               >
                 Attendance CSV
               </Button>
               <Button
                 onClick={() => handleExportCSV('expenses')}
                 variant="outline"
-                className="border-white/10"
               >
                 Finance CSV
               </Button>
               <Button
                 onClick={() => handleExportCSV('health')}
                 variant="outline"
-                className="border-white/10"
               >
                 Health CSV
               </Button>
               <Button
                 onClick={() => handleExportCSV('mood_entries')}
                 variant="outline"
-                className="border-white/10"
               >
                 Mood CSV
               </Button>
@@ -239,36 +240,36 @@ export default function Settings() {
         </div>
 
         {/* Privacy */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center">
               <Shield className="w-5 h-5 text-rose-400" />
             </div>
             <div>
               <h2 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Privacy & Security</h2>
-              <p className="text-sm text-slate-400">Manage your data privacy</p>
+              <p className="text-sm text-muted-foreground">Manage your data privacy</p>
             </div>
           </div>
           <div className="space-y-3">
-            <div className="p-4 bg-slate-950/50 rounded-xl">
-              <p className="text-sm text-slate-300 mb-2"><span className="font-semibold">Data Storage:</span> All your data is securely stored in Firebase and encrypted.</p>
+            <div className="p-4 bg-muted/50 rounded-xl">
+              <p className="text-sm text-foreground mb-2"><span className="font-semibold">Data Storage:</span> All your data is securely stored in Firebase and encrypted.</p>
             </div>
-            <div className="p-4 bg-slate-950/50 rounded-xl">
-              <p className="text-sm text-slate-300 mb-2"><span className="font-semibold">Privacy:</span> Your data is private and only accessible to you.</p>
+            <div className="p-4 bg-muted/50 rounded-xl">
+              <p className="text-sm text-foreground mb-2"><span className="font-semibold">Privacy:</span> Your data is private and only accessible to you.</p>
             </div>
-            <div className="p-4 bg-slate-950/50 rounded-xl">
-              <p className="text-sm text-slate-300 mb-2"><span className="font-semibold">Data Deletion:</span> You can delete your account and all data at any time.</p>
+            <div className="p-4 bg-muted/50 rounded-xl">
+              <p className="text-sm text-foreground mb-2"><span className="font-semibold">Data Deletion:</span> You can delete your account and all data at any time.</p>
             </div>
           </div>
         </div>
 
         {/* About */}
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl p-6">
+        <div className="bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6">
           <h2 className="text-xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>About TrackitAll</h2>
-          <div className="space-y-2 text-sm text-slate-400">
+          <div className="space-y-2 text-sm text-muted-foreground">
             <p>Version: 1.0.0</p>
             <p>Built with React + Firebase</p>
-            <p className="pt-4 border-t border-white/5">TrackitAll helps students track attendance, finances, health, mood, and goals in one beautiful app.</p>
+            <p className="pt-4 border-t border-border">TrackitAll helps students track attendance, finances, health, mood, and goals in one beautiful app.</p>
           </div>
         </div>
       </div>

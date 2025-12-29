@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
-import { Wallet, Plus, TrendingDown, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
-import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { Wallet, Plus, TrendingDown, TrendingUp, PieChart as PieChartIcon, Trash2, Edit2, X } from 'lucide-react';
+import { collection, addDoc, getDocs, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,7 @@ export default function Finance() {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newExpense, setNewExpense] = useState({
     amount: '',
     category: 'Food',
@@ -77,26 +78,65 @@ export default function Finance() {
       Object.entries(validation.error).forEach(([field, message]) => {
         toast.error(`${field}: ${message}`);
       });
+      setSubmitting(false);
       return;
     }
     try {
-      await addDoc(collection(db, 'expenses'), {
-        ...newExpense,
-        amount: parseFloat(newExpense.amount),
-        date: serverTimestamp(),
-        userId: user.uid
-      });
-      addPoints(POINTS.LOG_EXPENSE);
-      toast.success(`+${POINTS.LOG_EXPENSE} XP! Expense logged`);
+      if (editingId) {
+        await updateDoc(doc(db, 'expenses', editingId), {
+          amount: parseFloat(newExpense.amount),
+          category: newExpense.category,
+          description: newExpense.description
+        });
+        toast.success('Expense updated');
+      } else {
+        await addDoc(collection(db, 'expenses'), {
+          ...newExpense,
+          amount: parseFloat(newExpense.amount),
+          date: serverTimestamp(),
+          userId: user.uid
+        });
+        addPoints(POINTS.LOG_EXPENSE);
+        toast.success(`+${POINTS.LOG_EXPENSE} XP! Expense logged`);
+      }
       setShowAddExpense(false);
+      setEditingId(null);
       setNewExpense({ amount: '', category: 'Food', description: '' });
       loadExpenses();
     } catch (error) {
-      console.error('Error adding expense:', error);
-      toast.error('Failed to add expense');
+      console.error('Error saving expense:', error);
+      toast.error('Failed to save expense');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDeleteExpense = async (expenseId) => {
+    if (!window.confirm('Are you sure you want to delete this expense?')) return;
+    try {
+      await deleteDoc(doc(db, 'expenses', expenseId));
+      toast.success('Expense deleted');
+      loadExpenses();
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast.error('Failed to delete expense');
+    }
+  };
+
+  const handleEditExpense = (expense) => {
+    setEditingId(expense.id);
+    setNewExpense({
+      amount: expense.amount.toString(),
+      category: expense.category,
+      description: expense.description || ''
+    });
+    setShowAddExpense(true);
+  };
+
+  const handleCancel = () => {
+    setShowAddExpense(false);
+    setEditingId(null);
+    setNewExpense({ amount: '', category: 'Food', description: '' });
   };
 
   const getMonthlyTotal = () => {
@@ -153,7 +193,7 @@ export default function Finance() {
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Finance Tracker</h1>
             <p className="text-sm sm:text-base text-slate-400">Track your expenses and manage your budget</p>
           </div>
-          <Dialog open={showAddExpense} onOpenChange={setShowAddExpense}>
+          <Dialog open={showAddExpense} onOpenChange={(open) => { setShowAddExpense(open); if (!open) handleCancel(); }}>
             <DialogTrigger asChild>
               <Button
                 data-testid="add-expense-button"
@@ -165,7 +205,7 @@ export default function Finance() {
             </DialogTrigger>
             <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">Log Expense</DialogTitle>
+                <DialogTitle className="text-slate-200">{editingId ? 'Edit Expense' : 'Log Expense'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddExpense} className="space-y-4">
                 <div>
@@ -204,9 +244,15 @@ export default function Finance() {
                     className="bg-slate-950 border-slate-800 text-slate-200"
                   />
                 </div>
-                <Button type="submit" disabled={submitting} className="w-full bg-amber-600 hover:bg-amber-500">
-                  {submitting ? 'Adding...' : 'Log Expense'}
-                </Button>
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={submitting} className="flex-1 bg-amber-600 hover:bg-amber-500">
+                    {submitting ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Expense' : 'Log Expense')}
+                  </Button>
+                  <Button type="button" onClick={handleCancel} disabled={submitting} variant="outline" className="flex-1 border-white/10">
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -349,7 +395,7 @@ export default function Finance() {
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {expenses.slice(0, 15).map(expense => (
-                      <tr key={expense.id} data-testid={`expense-${expense.id}`} className="hover:bg-white/5 transition-colors">
+                      <tr key={expense.id} data-testid={`expense-${expense.id}`} className="hover:bg-white/5 transition-colors group">
                         <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-xs sm:text-sm text-slate-400">{formatDate(expense.date)}</td>
                         <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4">
                           <span
@@ -361,8 +407,26 @@ export default function Finance() {
                           </span>
                         </td>
                         <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-xs sm:text-sm hidden sm:table-cell">{expense.description || '-'}</td>
-                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-right text-xs sm:text-sm font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                          {formatCurrency(expense.amount)}
+                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-xs sm:text-sm font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                              {formatCurrency(expense.amount)}
+                            </span>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleEditExpense(expense)}
+                                className="p-1 text-slate-500 hover:text-amber-400 hover:bg-amber-500/10 rounded transition-colors"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteExpense(expense.id)}
+                                className="p-1 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}
