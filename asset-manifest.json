@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/TrackitAll-Student/static/css/main.469396f5.css",
-    "main.js": "/TrackitAll-Student/static/js/main.2625ca49.js",
+    "main.css": "/TrackitAll-Student/static/css/main.ae53af01.css",
+    "main.js": "/TrackitAll-Student/static/js/main.c6f11186.js",
     "index.html": "/TrackitAll-Student/index.html",
-    "main.469396f5.css.map": "/TrackitAll-Student/static/css/main.469396f5.css.map",
-    "main.2625ca49.js.map": "/TrackitAll-Student/static/js/main.2625ca49.js.map"
+    "main.ae53af01.css.map": "/TrackitAll-Student/static/css/main.ae53af01.css.map",
+    "main.c6f11186.js.map": "/TrackitAll-Student/static/js/main.c6f11186.js.map"
   },
   "entrypoints": [
-    "static/css/main.469396f5.css",
-    "static/js/main.2625ca49.js"
+    "static/css/main.ae53af01.css",
+    "static/js/main.c6f11186.js"
   ]
 }
