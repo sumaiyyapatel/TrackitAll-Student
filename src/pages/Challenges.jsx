@@ -322,7 +322,7 @@ export default function Challenges() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <DataCard
             title="Active Challenges"
             value={activeChallenges.length}
@@ -354,7 +354,7 @@ export default function Challenges() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {activeChallenges.map(challenge => {
                 const daysRemaining = calculateDaysRemaining(challenge.endDate);
                 const myProgress = challenge.participants && challenge.participants[user.uid]?.progress || 0;
@@ -465,7 +465,7 @@ export default function Challenges() {
         {completedChallenges.length > 0 && (
           <div>
             <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Completed Challenges 🎉</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               {completedChallenges.map(challenge => (
                 <div
                   key={challenge.id}

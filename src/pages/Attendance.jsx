@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { CollapsibleSection } from '@/components/CollapsibleSection';
+import { ViewToggle } from '@/components/ViewToggle';
+import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
-import { Calendar, Plus, Check, X, TrendingUp, AlertCircle, Trash2, Edit2 } from 'lucide-react';
+import { Calendar, Plus, Check, X, Edit2, Trash2 } from 'lucide-react';
 import { collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { userRecent } from '@/utils/canonicalQueries';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/ui/responsive-dialog';
+import { AttendanceForm } from '@/components/forms/AttendanceForm';
+import { CourseForm } from '@/components/forms/CourseForm';
 import { toast } from 'sonner';
-import { getAttendanceColor, getAttendanceStatus, formatDate } from '@/utils/helpers';
+import { getAttendanceColor, formatDate } from '@/utils/helpers';
 import { POINTS } from '@/utils/gamification';
+import { CATEGORY_THEMES } from '@/utils/categoryColors';
 
 export default function Attendance() {
   const { user, addPoints } = useStore();
@@ -27,6 +29,7 @@ export default function Attendance() {
   const [selectedCourse, setSelectedCourse] = useState('');
   const [submittingAddCourse, setSubmittingAddCourse] = useState(false);
   const [submittingMark, setSubmittingMark] = useState(false);
+  const [courseView, setCourseView] = useState('quick');
 
   useEffect(() => {
     if (user) {
@@ -36,7 +39,6 @@ export default function Attendance() {
 
   const loadData = async () => {
     try {
-      // Load courses
       const coursesQuery = query(
         collection(db, 'courses'),
         where('userId', '==', user.uid)
@@ -44,7 +46,6 @@ export default function Attendance() {
       const coursesSnap = await getDocs(coursesQuery);
       const coursesData = coursesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Load attendance explicitly by userId to avoid relying on helpers
       const attendanceQuery = query(
         collection(db, 'attendance'),
         where('userId', '==', user.uid)
@@ -100,9 +101,7 @@ export default function Attendance() {
   const handleDeleteCourse = async (courseId) => {
     if (!window.confirm('Are you sure you want to delete this course? All attendance records will also be deleted.')) return;
     try {
-      // Delete course
       await deleteDoc(doc(db, 'courses', courseId));
-      // Delete related attendance records
       const attendanceToDelete = attendanceRecords.filter(r => r.courseId === courseId);
       await Promise.all(attendanceToDelete.map(r => deleteDoc(doc(db, 'attendance', r.id))));
       toast.success('Course deleted');
@@ -110,18 +109,6 @@ export default function Attendance() {
     } catch (error) {
       console.error('Error deleting course:', error);
       toast.error('Failed to delete course');
-    }
-  };
-
-  const handleDeleteAttendance = async (recordId) => {
-    if (!window.confirm('Are you sure you want to delete this attendance record?')) return;
-    try {
-      await deleteDoc(doc(db, 'attendance', recordId));
-      toast.success('Attendance record deleted');
-      await loadData();
-    } catch (error) {
-      console.error('Error deleting attendance:', error);
-      toast.error('Failed to delete attendance record');
     }
   };
 
@@ -169,7 +156,7 @@ export default function Attendance() {
   const getCourseStats = (courseId) => {
     const courseAttendance = attendanceRecords.filter(record => record.courseId === courseId);
     const attended = courseAttendance.filter(record => record.attended).length;
-    const total = courseAttendance.length || 1;
+    const total = courses.find(c => c.id === courseId)?.totalLectures || 40;
     const percentage = Math.round((attended / total) * 100);
     return { attended, total, percentage };
   };
@@ -178,10 +165,11 @@ export default function Attendance() {
     return (
       <Layout>
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/2 mb-3" /><div className="h-32 bg-slate-700 rounded" /></div>
-            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/2 mb-3" /><div className="h-32 bg-slate-700 rounded" /></div>
-            <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/2 mb-3" /><div className="h-32 bg-slate-700 rounded" /></div>
+          <div className="h-32 bg-card/50 rounded-2xl animate-pulse" />
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-40 bg-card/50 rounded-2xl animate-pulse" />
+            ))}
           </div>
         </div>
       </Layout>
@@ -190,16 +178,22 @@ export default function Attendance() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-container mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Attendance Tracker</h1>
-            <p className="text-slate-400">Track your class attendance and maintain consistency</p>
-          </div>
+          <SectionHeader
+            title="Attendance Tracker"
+            subtitle="Track your class attendance and maintain consistency"
+            level="page"
+            className="mb-0"
+          />
           <div className="flex gap-3">
-            <Dialog open={showMarkAttendance} onOpenChange={setShowMarkAttendance}>
-              <DialogTrigger asChild>
+            <ResponsiveDialog
+              isOpen={showMarkAttendance}
+              setIsOpen={setShowMarkAttendance}
+              title="Mark Attendance"
+              description="Record your attendance for today"
+              trigger={
                 <Button
                   data-testid="mark-attendance-button"
                   className="bg-violet-600 hover:bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.5)]"
@@ -207,105 +201,67 @@ export default function Attendance() {
                   <Check className="w-4 h-4 mr-2" />
                   Mark Attendance
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="text-slate-200">Mark Attendance</DialogTitle>
-                  <DialogDescription className="sr-only">
-                    Record your attendance for today
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleMarkAttendance} className="space-y-4">
-                  <div>
-                    <Label className="text-slate-300">Select Course</Label>
-                    <Select value={selectedCourse} onValueChange={setSelectedCourse} required>
-                      <SelectTrigger data-testid="course-select" className="bg-slate-950 border-slate-800 text-slate-200">
-                        <SelectValue placeholder="Choose a course" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-white/10">
-                        {courses.map(course => (
-                          <SelectItem key={course.id} value={course.id} className="text-slate-200">
-                            {course.name} ({course.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button type="submit" disabled={submittingMark} className="w-full bg-violet-600 hover:bg-violet-500">
-                    {submittingMark ? 'Marking...' : 'Mark Present'}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+              }
+            >
+              <AttendanceForm
+                courses={courses}
+                selectedCourse={selectedCourse}
+                setSelectedCourse={setSelectedCourse}
+                onSubmit={handleMarkAttendance}
+                submitting={submittingMark}
+              />
+            </ResponsiveDialog>
 
-            <Dialog open={showAddCourse} onOpenChange={(open) => { setShowAddCourse(open); if (!open) handleCancelCourse(); }}>
-              <DialogTrigger asChild>
+            <ResponsiveDialog
+              isOpen={showAddCourse}
+              setIsOpen={(open) => { setShowAddCourse(open); if (!open) handleCancelCourse(); }}
+              title={editingCourseId ? 'Edit Course' : 'Add New Course'}
+              description={editingCourseId ? 'Edit course details' : 'Add a new course to track attendance'}
+              trigger={
                 <Button data-testid="add-course-button" variant="outline" className="border-white/10 text-slate-300">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Course
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="text-slate-200">{editingCourseId ? 'Edit Course' : 'Add New Course'}</DialogTitle>
-                  <DialogDescription className="sr-only">
-                    {editingCourseId ? 'Edit course details' : 'Add a new course to track attendance'}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleAddCourse} className="space-y-4">
-                  <div>
-                    <Label className="text-slate-300">Course Name</Label>
-                    <Input
-                      data-testid="course-name-input"
-                      value={newCourse.name}
-                      onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
-                      required
-                      placeholder="Data Structures"
-                      className="bg-slate-950 border-slate-800 text-slate-200"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-slate-300">Course Code</Label>
-                    <Input
-                      data-testid="course-code-input"
-                      value={newCourse.code}
-                      onChange={(e) => setNewCourse({ ...newCourse, code: e.target.value })}
-                      required
-                      placeholder="CS201"
-                      className="bg-slate-950 border-slate-800 text-slate-200"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-slate-300">Total Lectures (Expected)</Label>
-                    <Input
-                      data-testid="total-lectures-input"
-                      type="number"
-                      value={newCourse.totalLectures}
-                      onChange={(e) => setNewCourse({ ...newCourse, totalLectures: parseInt(e.target.value) })}
-                      required
-                      className="bg-slate-950 border-slate-800 text-slate-200"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <Button type="submit" disabled={submittingAddCourse} className="flex-1 bg-violet-600 hover:bg-violet-500">
-                      {submittingAddCourse ? (editingCourseId ? 'Updating...' : 'Adding...') : (editingCourseId ? 'Update Course' : 'Add Course')}
-                    </Button>
-                    <Button type="button" onClick={handleCancelCourse} disabled={submittingAddCourse} variant="outline" className="flex-1 border-white/10">
-                      <X className="w-4 h-4 mr-2" />
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+              }
+            >
+              <CourseForm
+                newCourse={newCourse}
+                setNewCourse={setNewCourse}
+                onSubmit={handleAddCourse}
+                onCancel={handleCancelCourse}
+                submitting={submittingAddCourse}
+                isEditing={!!editingCourseId}
+              />
+            </ResponsiveDialog>
           </div>
         </div>
 
-        {/* Courses Grid */}
+        {/* Sticky Summary */}
+        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md py-4 border-b border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-8">
+              <div>
+                <p className="text-overline uppercase tracking-widest text-muted-foreground font-semibold">Overall Attendance</p>
+                <h3 className={CATEGORY_THEMES.attendance.text}>
+                  {courses.length > 0 
+                    ? Math.round(courses.reduce((acc, c) => acc + getCourseStats(c.id).percentage, 0) / courses.length)
+                    : 0}%
+                </h3>
+              </div>
+              <div>
+                <p className="text-overline uppercase tracking-widest text-muted-foreground font-semibold">Courses Tracked</p>
+                <h3>{courses.length}</h3>
+              </div>
+            </div>
+            <ViewToggle view={courseView} onViewChange={setCourseView} />
+          </div>
+        </div>
+
+        {/* Course List */}
         {courses.length === 0 ? (
           <div className="text-center py-20">
             <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-            <h3 className="text-xl font-semibold mb-2 text-slate-400">No courses added yet</h3>
+            <h3 className="text-slate-400">No courses added yet</h3>
             <p className="text-slate-500 mb-6">Add your first course to start tracking attendance</p>
             <Button onClick={() => setShowAddCourse(true)} className="bg-violet-600 hover:bg-violet-500">
               <Plus className="w-4 h-4 mr-2" />
@@ -313,187 +269,136 @@ export default function Attendance() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-6">
             {courses.map(course => {
               const stats = getCourseStats(course.id);
-              return (
+              const target = 75;
+              const requiredToTarget = Math.max(0, Math.ceil((target * course.totalLectures / 100) - stats.attended));
+              
+              return courseView === 'quick' ? (
+                /* Quick View - Compact summary card */
                 <div
                   key={course.id}
                   data-testid={`course-${course.id}`}
-                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
+                  className={`bg-card/50 backdrop-blur-md border ${CATEGORY_THEMES.attendance.border} rounded-2xl p-6 ${CATEGORY_THEMES.attendance.hoverBorder} transition-all group`}
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <h3 className="font-bold text-lg mb-1 truncate" title={course.name} style={{ fontFamily: 'Outfit, sans-serif' }}>
-                            {course.name}
-                          </h3>
-                          <p className="text-sm text-slate-500">{course.code}</p>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditCourse(course)}
-                            className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteCourse(course.id)}
-                            className="border-danger/50 text-danger hover:bg-danger/10"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className={`w-14 h-14 rounded-xl ${CATEGORY_THEMES.attendance.bg} flex items-center justify-center shrink-0`}>
+                        <span className={`text-2xl font-bold ${getAttendanceColor(stats.percentage)}`}>{stats.percentage}%</span>
                       </div>
-                    </div>
-                    <div className={`text-3xl font-bold ${getAttendanceColor(stats.percentage)}`}>
-                      {stats.percentage}%
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-400">Attended</span>
-                      <span className="font-semibold">{stats.attended} / {stats.total}</span>
-                    </div>
-
-                    <div className="w-full bg-muted rounded-full h-2 relative overflow-hidden">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-1000 ${
-                          stats.percentage >= 90 ? 'bg-emerald-500' : 
-                          stats.percentage >= 80 ? 'bg-amber-500' : 
-                          'bg-danger'
-                        } ${stats.percentage >= 90 ? 'animate-pulse-glow' : ''}`}
-                        style={{ width: `${stats.percentage}%` }}
-                      />
-                      {stats.percentage >= 90 && (
-                        <div className="absolute inset-0 animate-shimmer" />
-                      )}
-                    </div>
-                    {stats.percentage >= 90 && (
-                      <p className="text-xs text-emerald-400 mt-1 font-medium animate-fade-in">
-                        🎉 Excellent attendance! Keep it up!
-                      </p>
-                    )}
-                    {stats.percentage >= 75 && stats.percentage < 90 && (
-                      <p className="text-xs text-amber-400 mt-1 font-medium animate-fade-in">
-                        💪 Good progress! Aim for 90%+
-                      </p>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                      {stats.percentage >= 90 ? (
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      ) : stats.percentage >= 75 ? (
-                        <AlertCircle className="w-4 h-4 text-amber-400" />
-                      ) : (
-                        <X className="w-4 h-4 text-rose-400" />
-                      )}
-                      <span className={`text-sm font-medium ${
-                        stats.percentage >= 90 ? 'text-emerald-400' :
-                        stats.percentage >= 75 ? 'text-amber-400' : 'text-rose-400'
-                      }`}>
-                        {getAttendanceStatus(stats.percentage)}
-                      </span>
-                    </div>
-
-                    {stats.percentage < 90 && (
-                      <div className="mt-3 p-3 bg-bg-card rounded-lg">
-                        <p className="text-xs text-slate-400">
-                          <TrendingUp className="w-3 h-3 inline mr-1" />
-                          Attend {Math.ceil((90 * stats.total - 100 * stats.attended) / 10)} more lectures to reach 90%
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                          {course.name}
+                        </h3>
+                        <p className="text-body-sm text-muted-foreground">
+                          {stats.attended}/{course.totalLectures} classes
+                          {requiredToTarget > 0 && (
+                            <span className="ml-2 text-caption">• Need {requiredToTarget} more for {target}%</span>
+                          )}
                         </p>
                       </div>
-                    )}
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button size="sm" variant="outline" onClick={() => handleEditCourse(course)} className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10">
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleDeleteCourse(course.id)} className="border-danger/50 text-danger hover:bg-danger/10">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  {/* Compact progress bar */}
+                  <div className="mt-4">
+                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className={`h-1.5 rounded-full transition-all duration-500 ${getAttendanceColor(stats.percentage).replace('text-', 'bg-')}`}
+                        style={{ width: `${Math.min(100, stats.percentage)}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
+              ) : (
+                /* Detailed View - Full course card with timeline */
+                <CollapsibleSection
+                  key={course.id}
+                  title={course.name}
+                  icon={Calendar}
+                  summary={`${stats.percentage}% attendance • ${stats.attended}/${course.totalLectures} classes`}
+                  badge={`${stats.percentage}%`}
+                  borderColor={CATEGORY_THEMES.attendance.border}
+                  defaultOpen={false}
+                >
+                  <div data-testid={`course-${course.id}`} className="space-y-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <p className="text-body-sm text-muted-foreground">{course.code}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleEditCourse(course)} className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10">
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleDeleteCourse(course.id)} className="border-danger/50 text-danger hover:bg-danger/10">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-500 ${getAttendanceColor(stats.percentage).replace('text-', 'bg-')}`}
+                              style={{ width: `${Math.min(100, stats.percentage)}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-body-sm text-muted-foreground">
+                              <span className="font-bold text-foreground">{stats.attended}</span> / {course.totalLectures} classes
+                            </p>
+                            <p className="text-body-sm font-medium">
+                              {requiredToTarget > 0 
+                                ? `Need ${requiredToTarget} more classes for ${target}%`
+                                : `Target ${target}% reached!`}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`text-4xl font-bold ${getAttendanceColor(stats.percentage)}`}>
+                        {stats.percentage}%
+                      </div>
+                    </div>
+
+                    {/* Horizontal Timeline */}
+                    <div className="pt-4 border-t border-border overflow-x-auto">
+                      <div className="flex gap-2 min-w-max pb-2">
+                        {attendanceRecords
+                          .filter(r => r.courseId === course.id)
+                          .sort((a, b) => new Date(b.date) - new Date(a.date))
+                          .slice(0, 20)
+                          .map(record => (
+                            <div 
+                              key={record.id}
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                                record.attended ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                              }`}
+                              title={formatDate(record.date)}
+                            >
+                              {record.attended ? 'P' : 'A'}
+                            </div>
+                          ))}
+                        {attendanceRecords.filter(r => r.courseId === course.id).length === 0 && (
+                          <p className="text-body-sm text-muted-foreground">No records yet</p>
+                        )}
+                      </div>
+                      <p className="text-overline text-muted-foreground uppercase tracking-widest mt-2">Recent Attendance Timeline</p>
+                    </div>
+                  </div>
+                </CollapsibleSection>
               );
             })}
-          </div>
-        )}
-
-        {/* Recent Attendance - responsive: cards on small screens, table on md+ */}
-        {attendanceRecords.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Attendance</h2>
-
-            {/* Small screens: stacked cards */}
-            <div className="md:hidden space-y-3">
-              {attendanceRecords.slice(0, 10).map(record => (
-                <div key={record.id} data-testid={`attendance-record-${record.id}`} className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-start justify-between group">
-                  <div className="flex-1">
-                    <div className="font-semibold text-sm mb-1">{record.courseName}</div>
-                    <div className="text-xs text-slate-400">{formatDate(record.date)}</div>
-                  </div>
-                  <div className="ml-4 flex items-center gap-2">
-                    {record.attended ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm">
-                        <Check className="w-3 h-3" /> Present
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-danger/10 text-danger text-sm">
-                        <X className="w-3 h-3" /> Absent
-                      </span>
-                    )}
-                    <button
-                      onClick={() => handleDeleteAttendance(record.id)}
-                      className="p-1 text-slate-500 hover:text-danger hover:bg-danger/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Medium+ screens: table */}
-            <div className="hidden md:block">
-              <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-bg-card">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Course</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Date</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {attendanceRecords.slice(0, 10).map(record => (
-                        <tr key={record.id} data-testid={`attendance-record-${record.id}`} className="hover:bg-white/5 transition-colors group">
-                          <td className="px-6 py-4 text-sm">{record.courseName}</td>
-                          <td className="px-6 py-4 text-sm text-slate-400">{formatDate(record.date)}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              {record.attended ? (
-                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm">
-                                  <Check className="w-3 h-3" /> Present
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-danger/10 text-danger text-sm">
-                                  <X className="w-3 h-3" /> Absent
-                                </span>
-                              )}
-                              <button
-                                onClick={() => handleDeleteAttendance(record.id)}
-                                className="p-1 text-slate-500 hover:text-danger hover:bg-danger/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>

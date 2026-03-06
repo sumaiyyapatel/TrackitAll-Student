@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { Target, Plus, Check, Clock, TrendingUp, Trash2, X } from 'lucide-react';
@@ -19,6 +19,9 @@ import { AnimatedProgress } from '@/components/AnimatedProgress';
 import { Celebration } from '@/components/ui/Celebration';
 import { EncouragementMessage, getProgressHint } from '@/components/EncouragementMessage';
 import { DataCard } from '@/components/cards/DataCard';
+import { SearchFilter } from '@/components/SearchFilter';
+import { DataExport, EXPORT_COLUMNS } from '@/components/DataExport';
+import { GoalsSkeleton } from '@/components/SkeletonScreens';
 
 const CATEGORIES = ['Health', 'Finance', 'Academic', 'Personal', 'Career'];
 
@@ -29,6 +32,7 @@ export default function Goals() {
   const [showAdd, setShowAdd] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState('');
+  const [filteredGoals, setFilteredGoals] = useState(null);
   const [newGoal, setNewGoal] = useState({
     title: '',
     description: '',
@@ -133,25 +137,30 @@ export default function Goals() {
 
   const handleDeleteGoal = async (goalId) => {
     if (!window.confirm('Are you sure you want to delete this goal? This action cannot be undone.')) return;
+    // Optimistic UI
+    const previousGoals = goals;
+    setGoals(prev => prev.filter(g => g.id !== goalId));
     try {
       await deleteDoc(doc(db, 'goals', goalId));
       toast.success('Goal deleted');
-      loadGoals();
     } catch (error) {
       console.error('Error deleting goal:', error);
       toast.error('Failed to delete goal');
+      setGoals(previousGoals);
     }
   };
 
-  const activeGoals = goals.filter(g => g.status === 'active');
-  const completedGoals = goals.filter(g => g.status === 'completed');
+  const activeGoals = (filteredGoals || goals).filter(g => g.status === 'active');
+  const completedGoals = (filteredGoals || goals).filter(g => g.status === 'completed');
+
+  const handleFilterChange = useCallback((filtered) => {
+    setFilteredGoals(filtered);
+  }, []);
 
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <GoalsSkeleton />
       </Layout>
     );
   }
@@ -256,7 +265,7 @@ export default function Goals() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <DataCard
             title="Active Goals"
             value={activeGoals.length}
@@ -272,6 +281,20 @@ export default function Goals() {
             value={`${goals.length > 0 ? Math.round((completedGoals.length / goals.length) * 100) : 0}%`}
             icon={TrendingUp}
           />
+        </div>
+
+        {/* Search, Filter & Export */}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <SearchFilter
+            data={goals}
+            onFilter={handleFilterChange}
+            searchFields={['title', 'description', 'category']}
+            categories={CATEGORIES}
+            statuses={['active', 'completed']}
+            placeholder="Search goals..."
+            className="flex-1"
+          />
+          <DataExport data={goals} columns={EXPORT_COLUMNS.goals} title="Goals" />
         </div>
 
         {/* Active Goals */}

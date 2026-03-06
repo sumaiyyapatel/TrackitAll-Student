@@ -4,11 +4,13 @@ import { db } from '@/firebase/config';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import useStore from '@/store/useStore';
 
-const Leaderboard = ({ top = 10, friendsOnly = false }) => {
+const Leaderboard = ({ top = 10, friendsOnly: initialFriendsOnly = false }) => {
   const { user } = useStore();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState(initialFriendsOnly ? 'friends' : 'global');
+  const friendsOnly = viewMode === 'friends';
 
   const loadFriendsLeaderboard = async () => {
     if (!user) return;
@@ -98,13 +100,34 @@ const Leaderboard = ({ top = 10, friendsOnly = false }) => {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-            {friendsOnly ? 'Friends Leaderboard' : 'Leaderboard'}
+            Leaderboard
           </h3>
           <p className="text-xs text-muted-foreground">
             {friendsOnly ? `Top ${Math.min(items.length, top)} friends` : `Top ${top} users`}
           </p>
         </div>
-        <div className="text-sm">🔥</div>
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5" role="tablist" aria-label="Leaderboard view">
+          <button
+            role="tab"
+            aria-selected={viewMode === 'friends'}
+            onClick={() => setViewMode('friends')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+              viewMode === 'friends' ? 'bg-violet-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Friends
+          </button>
+          <button
+            role="tab"
+            aria-selected={viewMode === 'global'}
+            onClick={() => setViewMode('global')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+              viewMode === 'global' ? 'bg-violet-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Global
+          </button>
+        </div>
       </div>
 
       {loading ? (
