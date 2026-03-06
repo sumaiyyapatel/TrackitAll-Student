@@ -317,7 +317,7 @@ export default function RecurringExpenses() {
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <DataCard
             title="Monthly Total"
             value={formatCurrency(getMonthlyTotal())}

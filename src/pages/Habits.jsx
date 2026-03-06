@@ -324,7 +324,7 @@ export default function Habits() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
             <div className="flex items-start justify-between mb-4">
               <div>

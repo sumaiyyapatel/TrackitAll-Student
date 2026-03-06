@@ -5,11 +5,14 @@
 import { z } from 'zod';
 
 // Schemas for different forms
-export const expenseSchema = z.object({
+export const transactionSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
-  category: z.string().min(1, 'Select a category'),
+  type: z.enum(['income', 'expense']),
+  category: z.string().min(1, 'Category is required'),
   description: z.string().optional()
 });
+
+export const expenseSchema = transactionSchema; // Alias for backward compatibility
 
 export const habitSchema = z.object({
   name: z.string().min(3, 'Habit name must be at least 3 characters'),

@@ -27,3 +27,9 @@ yarn-error.log*
 
 /.zencoder
 /.zenflow
+
+# IDE
+.vscode/
+
+# OS
+Thumbs.db

@@ -1,22 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
+import { CollapsibleSection } from '@/components/CollapsibleSection';
+import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
-import { Wallet, Plus, TrendingDown, TrendingUp, PieChart as PieChartIcon, Trash2, Edit2, X } from 'lucide-react';
+import { Wallet, Plus, TrendingUp, X, PieChart as PieChartIcon, BarChart3 } from 'lucide-react';
+import { VoiceInput } from '@/components/VoiceInput';
 import { collection, addDoc, getDocs, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/ui/responsive-dialog';
+import { ExpenseForm } from '@/components/forms/ExpenseForm';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { POINTS } from '@/utils/gamification';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { expenseSchema, validateFormData, sanitizeInput } from '@/utils/validation';
-import { DataCard } from '@/components/cards/DataCard';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { expenseSchema, transactionSchema, validateFormData } from '@/utils/validation';
+import { CATEGORY_THEMES } from '@/utils/categoryColors';
+import { SmartInsights } from '@/components/SmartInsights';
+import { TimePeriodFilter, getPeriodStartDate } from '@/components/TimePeriodFilter';
+import { DataExport, EXPORT_COLUMNS } from '@/components/DataExport';
+import { XPProgressBar } from '@/components/GamificationWidgets';
+import { FinanceSkeleton } from '@/components/SkeletonScreens';
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Education', 'Bills', 'Health', 'Other'];
 const CATEGORY_COLORS = {
@@ -38,10 +46,19 @@ export default function Finance() {
   const [editingId, setEditingId] = useState(null);
   const [newExpense, setNewExpense] = useState({
     amount: '',
+    type: 'expense',
     category: 'Food',
     description: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('month');
+  const [timePeriod, setTimePeriod] = useState('month');
+  const [periodStart, setPeriodStart] = useState(() => getPeriodStartDate('month'));
+
+  const handlePeriodChange = useCallback((key, start) => {
+    setTimePeriod(key);
+    setPeriodStart(start);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -52,7 +69,11 @@ export default function Finance() {
   const loadExpenses = async () => {
     try {
       const expensesSnap = await getDocs(userRecent(db, 'expenses', user.uid, 200));
-      const expensesData = expensesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const expensesData = expensesSnap.docs.map(doc => ({ 
+        id: doc.id, 
+        type: 'expense', // Default for legacy data
+        ...doc.data() 
+      }));
       setExpenses(expensesData);
     } catch (error) {
       console.error('Error loading expenses:', error);
@@ -69,10 +90,11 @@ export default function Finance() {
     const validation = validateFormData(
       {
         amount: parseFloat(newExpense.amount),
+        type: newExpense.type || 'expense',
         category: newExpense.category,
         description: newExpense.description
       },
-      expenseSchema
+      transactionSchema
     );
 
     if (!validation.valid) {
@@ -86,81 +108,81 @@ export default function Finance() {
       if (editingId) {
         await updateDoc(doc(db, 'expenses', editingId), {
           amount: parseFloat(newExpense.amount),
+          type: newExpense.type || 'expense',
           category: newExpense.category,
           description: newExpense.description
         });
-        toast.success('Expense updated');
+        toast.success('Transaction updated');
       } else {
         await addDoc(collection(db, 'expenses'), {
           ...newExpense,
           amount: parseFloat(newExpense.amount),
+          type: newExpense.type || 'expense',
           date: serverTimestamp(),
           userId: user.uid
         });
         addPoints(POINTS.LOG_EXPENSE);
-        toast.success(`+${POINTS.LOG_EXPENSE} XP! Expense logged`);
+        toast.success(`+${POINTS.LOG_EXPENSE} XP! Transaction logged`);
       }
       setShowAddExpense(false);
       setEditingId(null);
-      setNewExpense({ amount: '', category: 'Food', description: '' });
+      setNewExpense({ amount: '', type: 'expense', category: 'Food', description: '' });
       loadExpenses();
     } catch (error) {
-      console.error('Error saving expense:', error);
-      toast.error('Failed to save expense');
+      console.error('Error saving transaction:', error);
+      toast.error('Failed to save transaction');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteExpense = async (expenseId) => {
-    if (!window.confirm('Are you sure you want to delete this expense?')) return;
+    if (!window.confirm('Are you sure you want to delete this transaction?')) return;
+    // Optimistic UI: remove immediately
+    const previousExpenses = expenses;
+    setExpenses(prev => prev.filter(e => e.id !== expenseId));
     try {
       await deleteDoc(doc(db, 'expenses', expenseId));
-      toast.success('Expense deleted');
-      loadExpenses();
+      toast.success('Transaction deleted');
     } catch (error) {
-      console.error('Error deleting expense:', error);
-      toast.error('Failed to delete expense');
+      console.error('Error deleting transaction:', error);
+      toast.error('Failed to delete transaction');
+      // Revert on error
+      setExpenses(previousExpenses);
     }
-  };
-
-  const handleEditExpense = (expense) => {
-    setEditingId(expense.id);
-    setNewExpense({
-      amount: expense.amount.toString(),
-      category: expense.category,
-      description: expense.description || ''
-    });
-    setShowAddExpense(true);
   };
 
   const handleCancel = () => {
     setShowAddExpense(false);
     setEditingId(null);
-    setNewExpense({ amount: '', category: 'Food', description: '' });
+    setNewExpense({ amount: '', type: 'expense', category: 'Food', description: '' });
   };
 
-  const getMonthlyTotal = () => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const getMonthlyStats = () => {
     return expenses
       .filter(exp => {
-          const d = normalizeDate(exp.date);
-          return d && d >= startOfMonth;
-        })
-      .reduce((sum, exp) => sum + exp.amount, 0);
+        const d = normalizeDate(exp.date);
+        return d && d >= periodStart;
+      })
+      .reduce((acc, exp) => {
+        const type = exp.type || 'expense';
+        if (type === 'income') {
+          acc.income += exp.amount;
+        } else {
+          acc.expenses += exp.amount;
+        }
+        return acc;
+      }, { income: 0, expenses: 0 });
   };
 
-  const getCategoryData = () => {
+  const getChartData = () => {
     const categoryTotals = {};
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     expenses
       .filter(exp => {
-          const d = normalizeDate(exp.date);
-          return d && d >= startOfMonth;
-        })
+        const d = normalizeDate(exp.date);
+        return d && d >= periodStart && (exp.type === 'expense' || !exp.type);
+      })
       .forEach(exp => {
         categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
       });
@@ -172,241 +194,207 @@ export default function Finance() {
     }));
   };
 
-  const categoryData = getCategoryData();
-  const monthlyTotal = getMonthlyTotal();
+  const { income: monthlyIncome, expenses: monthlyExpenses } = getMonthlyStats();
+  const monthlySavings = monthlyIncome - monthlyExpenses;
+  const monthlyTotal = monthlyExpenses;
+  const chartData = getChartData();
 
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <FinanceSkeleton />
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Finance Tracker</h1>
-            <p className="text-sm sm:text-base text-slate-400">Track your expenses and manage your budget</p>
+      <div className="max-w-container mx-auto space-y-8">
+        {/* XP Progress */}
+        <XPProgressBar className="animate-slide-up" />
+
+        {/* Smart Insights */}
+        <SmartInsights data={expenses} type="finance" />
+
+        {/* Hero Section */}
+        <div className={`bg-gradient-to-br ${CATEGORY_THEMES.finance.gradient} rounded-2xl p-8 text-white shadow-lg`}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-amber-100 text-sm uppercase tracking-wider font-semibold">Monthly Spending</p>
+              <h1 className="text-5xl font-bold mt-1">{formatCurrency(monthlyTotal)}</h1>
+            </div>
+            <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-md">
+              <Wallet className="w-8 h-8" />
+            </div>
           </div>
-          <Dialog open={showAddExpense} onOpenChange={(open) => { setShowAddExpense(open); if (!open) handleCancel(); }}>
-            <DialogTrigger asChild>
-              <Button
-                data-testid="add-expense-button"
-                className="bg-amber-600 hover:bg-amber-500 "
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-bg-card border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="text-slate-200">{editingId ? 'Edit Expense' : 'Log Expense'}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddExpense} className="space-y-4">
-                <div>
-                  <Label className="text-slate-300">Amount (₹)</Label>
-                  <Input
-                    data-testid="expense-amount-input"
-                    type="number"
-                    step="0.01"
-                    value={newExpense.amount}
-                    onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
-                    required
-                    placeholder="500"
-                    className="bg-bg-card border-slate-800 text-slate-200"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-300">Category</Label>
-                  <Select value={newExpense.category} onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}>
-                    <SelectTrigger data-testid="expense-category-select" className="bg-bg-card border-slate-800 text-slate-200">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-bg-card border-white/10">
-                      {CATEGORIES.map(cat => (
-                        <SelectItem key={cat} value={cat} className="text-slate-200">{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-slate-300">Description (Optional)</Label>
-                  <Input
-                    data-testid="expense-description-input"
-                    value={newExpense.description}
-                    onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-                    placeholder="Lunch with friends"
-                    className="bg-bg-card border-slate-800 text-slate-200"
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <Button type="submit" disabled={submitting} className="flex-1 bg-amber-600 hover:bg-amber-500">
-                    {submitting ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Expense' : 'Log Expense')}
-                  </Button>
-                  <Button type="button" onClick={handleCancel} disabled={submitting} variant="outline" className="flex-1 border-white/10">
-                    <X className="w-4 h-4 mr-2" />
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-4 mt-6">
+            <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => setShowAddExpense(true)}
+              className="bg-white text-orange-600 hover:bg-amber-50"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Expense
+            </Button>
+            <VoiceInput
+              onResult={(parsed) => {
+                setNewExpense({
+                  amount: parsed.amount,
+                  category: parsed.category,
+                  description: parsed.description
+                });
+                setShowAddExpense(true);
+              }}
+              buttonText="Voice"
+            />
+          </div>
+          </div>
         </div>
 
-        {/* Monthly Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-          <DataCard
-            title="This Month"
-            value={formatCurrency(monthlyTotal)}
-            icon={Wallet}
-          />
-          <DataCard
-            title="Avg Daily Spend"
-            value={formatCurrency(monthlyTotal / new Date().getDate())}
-            icon={TrendingUp}
-          />
-          <DataCard
-            title="Total Expenses"
-            value={expenses.length}
-            icon={PieChartIcon}
-          />
-        </div>
-
-        {/* Category Breakdown */}
-        {categoryData.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Spending by Category</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
+        {/* Tabbed Chart Section */}
+        <CollapsibleSection
+          title="Spending Overview"
+          icon={BarChart3}
+          summary={`${chartData.length} categories this month`}
+          defaultOpen={true}
+          borderColor={CATEGORY_THEMES.finance.border}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <TimePeriodFilter value={timePeriod} onChange={handlePeriodChange} />
+            <DataExport data={expenses} columns={EXPORT_COLUMNS.expenses} title="Expenses" />
+          </div>
+          <Tabs defaultValue="month" onValueChange={setActiveTab}>
+            <div className="flex items-center justify-end mb-6">
+              <TabsList className="bg-muted">
+                <TabsTrigger value="week">Week</TabsTrigger>
+                <TabsTrigger value="month">Month</TabsTrigger>
+                <TabsTrigger value="custom">Custom</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value={activeTab} className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                    tickFormatter={(value) => `₹${value}`}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                    itemStyle={{ color: '#fff' }}
+                    formatter={(value) => formatCurrency(value)}
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => formatCurrency(value)}
-                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                    labelStyle={{ color: '#f8fafc' }}
-                  />
-                </PieChart>
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
-            </div>
+            </TabsContent>
+          </Tabs>
+        </CollapsibleSection>
 
-            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Category Breakdown</h2>
-              <div className="space-y-4">
-                {categoryData.map(cat => {
-                  const percentage = (cat.value / monthlyTotal) * 100;
-                  return (
-                    <div key={cat.name}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
-                          <span className="text-sm font-medium">{cat.name}</span>
-                        </div>
-                        <span className="text-sm font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                          {formatCurrency(cat.value)}
-                        </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6\">
+          {/* Category Breakdown Accordion */}
+          <div className="lg:col-span-1">
+            <div className={`bg-card/50 backdrop-blur-md border ${CATEGORY_THEMES.finance.border} rounded-2xl p-6`}>
+              <SectionHeader title="Categories" level="subsection" />
+              <Accordion type="single" collapsible className="w-full">
+                {chartData.map((cat, idx) => (
+                  <AccordionItem key={cat.name} value={`item-${idx}`} className="border-border">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
+                        <span className="text-sm font-medium">{cat.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">{formatCurrency(cat.value)}</span>
                       </div>
-                      <div className="w-full bg-slate-800 rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full"
-                          style={{ width: `${percentage}%`, backgroundColor: cat.color }}
-                        />
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="pl-6 space-y-2">
+                        {expenses
+                          .filter(e => e.category === cat.name && normalizeDate(e.date) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+                          .slice(0, 3)
+                          .map(e => (
+                            <div key={e.id} className="flex justify-between text-xs text-muted-foreground">
+                              <span>{e.description || 'No description'}</span>
+                              <span>{formatCurrency(e.amount)}</span>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          </div>
+
+          {/* Recent Expenses - Limited to 5 */}
+          <div className="lg:col-span-2">
+            <div className={`bg-card/50 backdrop-blur-md border ${CATEGORY_THEMES.finance.border} rounded-2xl p-6`}>
+              <div className="flex items-center justify-between mb-6">
+                <SectionHeader title="Recent Transactions" level="subsection" className="mb-0" />
+                <Button variant="ghost" size="sm" className="text-xs text-violet-400">View All</Button>
+              </div>
+              <div className="space-y-4" role="list" aria-label="Recent transactions">
+                {expenses.slice(0, 5).map(expense => (
+                  <div key={expense.id} role="listitem" className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors group" aria-label={`${expense.description || expense.category}: ${formatCurrency(expense.amount)}`}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${CATEGORY_COLORS[expense.category]}20`, color: CATEGORY_COLORS[expense.category] }}>
+                        <PieChartIcon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{expense.description || expense.category}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(expense.date)}</p>
                       </div>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm font-bold">{formatCurrency(expense.amount)}</span>
+                      <button 
+                        onClick={() => handleDeleteExpense(expense.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-rose-500 transition-all focus-visible:opacity-100"
+                        aria-label={`Delete ${expense.description || expense.category} transaction`}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {expenses.length === 0 && (
+                  <div className="text-center py-10 text-muted-foreground">No recent transactions</div>
+                )}
               </div>
             </div>
           </div>
-        )}
-
-        {/* Recent Expenses */}
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Transactions</h2>
-          {expenses.length === 0 ? (
-            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
-              <Wallet className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2 text-slate-400">No expenses logged yet</h3>
-              <p className="text-slate-500 mb-6">Start tracking your spending to see insights</p>
-              <Button onClick={() => setShowAddExpense(true)} className="bg-amber-600 hover:bg-amber-500">
-                <Plus className="w-4 h-4 mr-2" />
-                Log Your First Expense
-              </Button>
-            </div>
-          ) : (
-            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-bg-card/50">
-                    <tr>
-                      <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-300">Date</th>
-                      <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-300">Category</th>
-                      <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-slate-300 hidden sm:table-cell">Description</th>
-                      <th className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-right text-xs sm:text-sm font-semibold text-slate-300">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {expenses.slice(0, 15).map(expense => (
-                      <tr key={expense.id} data-testid={`expense-${expense.id}`} className="hover:bg-white/5 transition-colors group">
-                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-xs sm:text-sm text-slate-400">{formatDate(expense.date)}</td>
-                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4">
-                          <span
-                            className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium"
-                            style={{ backgroundColor: `${CATEGORY_COLORS[expense.category]}20`, color: CATEGORY_COLORS[expense.category] }}
-                          >
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[expense.category] }} />
-                            <span className="hidden sm:inline">{expense.category}</span>
-                          </span>
-                        </td>
-                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-xs sm:text-sm hidden sm:table-cell">{expense.description || '-'}</td>
-                        <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-xs sm:text-sm font-bold" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                              {formatCurrency(expense.amount)}
-                            </span>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => handleEditExpense(expense)}
-                                className="p-1 text-slate-500 hover:text-amber-400 hover:bg-amber-500/10 rounded transition-colors"
-                              >
-                                <Edit2 className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteExpense(expense.id)}
-                                className="p-1 text-slate-500 hover:text-danger hover:bg-danger/10 rounded transition-colors"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
+      <ResponsiveDialog
+        isOpen={showAddExpense}
+        setIsOpen={(open) => { setShowAddExpense(open); if (!open) handleCancel(); }}
+        title={editingId ? 'Edit Expense' : 'Log Expense'}
+        description={editingId ? 'Update your expense details' : 'Keep track of your spending'}
+      >
+        <ExpenseForm
+          newExpense={newExpense}
+          setNewExpense={setNewExpense}
+          categories={CATEGORIES}
+          onSubmit={handleAddExpense}
+          onCancel={handleCancel}
+          submitting={submitting}
+          isEditing={!!editingId}
+        />
+      </ResponsiveDialog>
     </Layout>
   );
 }

@@ -194,7 +194,7 @@ export default function TimeAnalytics() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <DataCard
             title="This Week"
             value={`${Math.round(totalTime / 60)}h`}
@@ -213,7 +213,7 @@ export default function TimeAnalytics() {
         </div>
 
         {/* Time Distribution */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
             <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Time Distribution</h2>
             {timeData.length === 0 ? (

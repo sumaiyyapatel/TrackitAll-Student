@@ -12,7 +12,7 @@ export const ListItemCard = ({
   testId,
   onClick
 }) => {
-  const baseClasses = "bg-bg-card border border-white/10 rounded-2xl p-6 hover:border-[#8b5cf6]/30 transition-all";
+  const baseClasses = "bg-bg-card border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all";
   
   if (onClick) {
     return (

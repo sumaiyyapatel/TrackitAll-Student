@@ -51,26 +51,26 @@ code {
     .light {
         --background: 0 0% 100%;
         --foreground: 222.2 47.4% 11.2%;
-        --card: 0 0% 10%;
+        --card: 222.2 84% 96%;
         --card-foreground: 222.2 47.4% 11.2%;
         --popover: 0 0% 100%;
         --popover-foreground: 222.2 47.4% 11.2%;
         --primary: 262.1 83.3% 57.8%;
         --primary-foreground: 210 40% 98%;
-        --secondary: 210 40% 96.1%;
+        --secondary: 222.2 80% 88.2%;
         --secondary-foreground: 222.2 47.4% 11.2%;
-        --muted: 210 40% 96.1%;
-        --muted-foreground: 215.4 16.3% 46.9%;
-        --accent: 210 40% 96.1%;
-        --accent-foreground: 222.2 47.4% 11.2%;
+        --muted: 222.2 84% 93%;
+        --muted-foreground: 215.4 16.3% 40%;
+        --accent: 262.1 83.3% 57.8%;
+        --accent-foreground: 210 40% 98%;
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 210 40% 98%;
         --success: 160 84% 39%;
         --warning: 38 92% 50%;
         --danger: 0 84% 60%;
         --info: 188 94% 43%;
-        --border: 214.3 31.8% 91.4%;
-        --input: 214.3 31.8% 91.4%;
+        --border: 222.2 84% 88%;
+        --input: 222.2 84% 92%;
         --ring: 262.1 83.3% 57.8%;
         --chart-1: 262.1 83.3% 57.8%;
         --chart-2: 173 58% 39%;
@@ -85,7 +85,16 @@ code {
         @apply border-border;
     }
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground text-body;
+    }
+    h1 {
+        @apply text-h1;
+    }
+    h2 {
+        @apply text-h2;
+    }
+    h3 {
+        @apply text-h3;
     }
 }
 
@@ -184,6 +193,168 @@ code {
 
 .scrollbar-hide::-webkit-scrollbar {
     display: none;
+}
+
+/* === Accessibility: Visible Focus Indicators === */
+*:focus-visible {
+    outline: 2px solid hsl(262.1 83.3% 57.8%);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Remove focus ring for mouse interactions */
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Enhanced focus for buttons and interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="tab"]:focus-visible,
+[role="button"]:focus-visible {
+    outline: 2px solid hsl(262.1 83.3% 57.8%);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
+}
+
+/* High-contrast focus for dark backgrounds */
+.bg-gradient-to-br *:focus-visible,
+.bg-violet-600 *:focus-visible {
+    outline-color: #fff;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+/* Skip to content link (screen reader) */
+.skip-to-content {
+    position: absolute;
+    left: -9999px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    z-index: 9999;
+}
+
+.skip-to-content:focus {
+    left: 16px;
+    top: 16px;
+    width: auto;
+    height: auto;
+    padding: 8px 16px;
+    background: hsl(262.1 83.3% 57.8%);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Screen reader only utility */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* WCAG AA: Ensure minimum contrast for muted text */
+.text-muted-foreground {
+    color: hsl(215 20.2% 65.1%); /* 4.6:1 contrast on dark bg */
+}
+
+.light .text-muted-foreground {
+    color: hsl(215.4 16.3% 40%); /* 4.5:1 contrast on light bg */
+}
+
+/* Enhanced light mode styling */
+.light {
+    color-scheme: light;
+}
+
+/* Light mode cards - improved shadows and styling */
+.light [class*="bg-bg-card"],
+.light [class*="card"],
+.light [class*="dialog"],
+.light [class*="popover"] {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    border-color: hsl(222.2 84% 88%) !important;
+}
+
+/* Light mode elevated surfaces */
+.light .backdrop-blur-md {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+/* Improved button contrast in light mode */
+.light button {
+    transition: all 0.2s ease;
+}
+
+.light button[class*="outline"] {
+    border-color: hsl(222.2 84% 78%);
+    color: hsl(222.2 47.4% 11.2%);
+}
+
+.light button[class*="outline"]:hover {
+    background: hsl(222.2 84% 95%);
+    border-color: hsl(222.2 84% 70%);
+}
+
+/* Input and form elements - better contrast */
+.light input,
+.light textarea,
+.light select {
+    background: hsl(0 0% 100%);
+    border-color: hsl(222.2 84% 85%);
+    color: hsl(222.2 47.4% 11.2%);
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+    color: hsl(215.4 16.3% 50%);
+}
+
+/* Text colors for better readability */
+.light h1,
+.light h2,
+.light h3,
+.light h4,
+.light h5,
+.light h6 {
+    color: hsl(222.2 47.4% 11.2%);
+}
+
+/* Light mode hover states */
+.light [class*="hover"]:hover {
+    background: hsl(222.2 84% 93%) !important;
+}
+
+/* Borders and separators */
+.light hr,
+.light [class*="border"] {
+    border-color: hsl(222.2 84% 88%);
+}
+
+/* Badge and pill styling */
+.light [class*="badge"],
+.light [class*="pill"] {
+    background: hsl(222.2 84% 93%);
+    color: hsl(222.2 47.4% 11.2%);
+}
+
+/* Data card styling */
+.light .space-y-4 > div[class*="bg-"],
+.light .grid > div[class*="bg-"] {
+    background: hsl(222.2 84% 96%);
+    border-color: hsl(222.2 84% 88%);
 }
 
 @layer base {

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Moon, Sun, Menu, X, LogOut, LayoutDashboard } from 'lucide-react';
 import { NAVIGATION_CONFIG, getAllNavItems, getActiveTab } from '@/config/navigation';
 import { MobileTabs } from '@/components/MobileTabs';
+import { MilestoneContainer } from '@/components/GamificationWidgets';
 
 export const Layout = ({ children }) => {
   const location = useLocation();
@@ -80,6 +81,13 @@ export const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Skip to content for keyboard navigation */}
+      <a href="#main-content" className="skip-to-content" tabIndex={0}>
+        Skip to main content
+      </a>
+
+      {/* Milestone notifications */}
+      <MilestoneContainer />
       {/* Theme Toggle - Desktop & Tablet */}
       <Button
         onClick={toggleTheme}
@@ -239,7 +247,7 @@ export const Layout = ({ children }) => {
 
       {/* Main Content */}
       <div className="lg:pl-64">
-        <main className={`py-4 px-0 md:pb-6 lg:pb-6 ${
+        <main id="main-content" tabIndex={-1} className={`py-4 px-0 md:pb-6 lg:pb-6 ${
           // Add top padding on mobile when Track or Stats tab is active (for swipeable header)
           (() => {
             const activeTab = getActiveTab(location.pathname);
@@ -247,7 +255,7 @@ export const Layout = ({ children }) => {
             return needsTopPadding ? 'pb-20 pt-20 md:pt-4' : 'pb-20 md:pt-4';
           })()
         }`}>
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="max-w-container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
             {children}
           </div>
         </main>

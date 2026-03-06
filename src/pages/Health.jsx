@@ -1,28 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { CollapsibleSection } from '@/components/CollapsibleSection';
+import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
-import { Heart, Plus, Activity, Moon, Utensils, Droplet, Trash2, Edit2, X } from 'lucide-react';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { Heart, Plus, Activity, Moon, Utensils, Droplet, Trash2, Edit2, X, Smile, BarChart3 } from 'lucide-react';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { userRecent } from '@/utils/canonicalQueries';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/ui/responsive-dialog';
+import { HealthForm } from '@/components/forms/HealthForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { formatDate } from '@/utils/helpers';
+import { formatDate, getMoodEmoji } from '@/utils/helpers';
 import { POINTS } from '@/utils/gamification';
-import { DataCard } from '@/components/cards/DataCard';
+import { CATEGORY_THEMES } from '@/utils/categoryColors';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { SmartInsights } from '@/components/SmartInsights';
+import { DataExport, EXPORT_COLUMNS } from '@/components/DataExport';
+import { HealthSkeleton } from '@/components/SkeletonScreens';
 
 export default function Health() {
   const { user, addPoints } = useStore();
   const [healthData, setHealthData] = useState([]);
+  const [moodData, setMoodData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('workout');
   const [newEntry, setNewEntry] = useState({
     type: 'workout',
@@ -36,18 +42,21 @@ export default function Health() {
 
   useEffect(() => {
     if (user) {
-      loadHealthData();
+      loadAllData();
     }
   }, [user]);
 
-  const loadHealthData = async () => {
+  const loadAllData = async () => {
     try {
-      // Use canonical query and filter as needed client-side
-      const healthSnap = await getDocs(userRecent(db, 'health', user.uid, 200));
-      const healthDataArray = healthSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setHealthData(healthDataArray);
+      const [healthSnap, moodSnap] = await Promise.all([
+        getDocs(userRecent(db, 'health', user.uid, 100)),
+        getDocs(userRecent(db, 'mood_entries', user.uid, 100))
+      ]);
+      
+      setHealthData(healthSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setMoodData(moodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      console.error('Error loading health data:', error);
+      console.error('Error loading data:', error);
       toast.error('Failed to load health data');
     } finally {
       setLoading(false);
@@ -56,393 +65,224 @@ export default function Health() {
 
   const handleAddEntry = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
-      if (editingId) {
-        const updateData = {};
-        if (newEntry.type === 'workout') {
-          updateData.duration = parseInt(newEntry.duration);
-          updateData.calories = parseInt(newEntry.calories) || 0;
-          updateData.intensity = newEntry.intensity;
-          updateData.description = newEntry.description;
-        } else if (newEntry.type === 'sleep') {
-          updateData.hours = parseFloat(newEntry.hours);
-          updateData.quality = parseInt(newEntry.quality);
-          updateData.description = newEntry.description;
-        } else if (newEntry.type === 'meal') {
-          updateData.intensity = newEntry.intensity; // meal type
-          updateData.description = newEntry.description;
-          updateData.calories = parseInt(newEntry.calories) || 0;
-        }
-        await updateDoc(doc(db, 'health', editingId), updateData);
-        toast.success('Health entry updated!');
-      } else {
-        const entry = {
-          ...newEntry,
-          date: new Date().toISOString(),
-          userId: user.uid
-        };
-        
-        if (newEntry.type === 'workout') {
-          entry.duration = parseInt(newEntry.duration);
-          entry.calories = parseInt(newEntry.calories);
-        } else if (newEntry.type === 'sleep') {
-          entry.hours = parseFloat(newEntry.hours);
-          entry.quality = parseInt(newEntry.quality);
-        }
-
-        await addDoc(collection(db, 'health'), entry);
-        addPoints(POINTS.LOG_HEALTH);
-        toast.success(`+${POINTS.LOG_HEALTH} XP! Health data logged`);
+      const entry = {
+        ...newEntry,
+        date: new Date().toISOString(),
+        userId: user.uid
+      };
+      
+      if (newEntry.type === 'workout') {
+        entry.duration = parseInt(newEntry.duration);
+        entry.calories = parseInt(newEntry.calories);
+      } else if (newEntry.type === 'sleep') {
+        entry.hours = parseFloat(newEntry.hours);
+        entry.quality = parseInt(newEntry.quality);
       }
+
+      await addDoc(collection(db, 'health'), entry);
+      addPoints(POINTS.LOG_HEALTH);
+      toast.success(`+${POINTS.LOG_HEALTH} XP! Health data logged`);
       setShowAdd(false);
-      setEditingId(null);
       setNewEntry({ type: 'workout', duration: '', intensity: 'medium', description: '', calories: '', hours: '', quality: '7' });
-      loadHealthData();
+      loadAllData();
     } catch (error) {
-      console.error('Error saving health entry:', error);
-      toast.error('Failed to save health data');
+      toast.error('Failed to save data');
+    } finally {
+      setSubmitting(false);
     }
   };
-
-  const handleDeleteEntry = async (entryId) => {
-    if (!window.confirm('Are you sure you want to delete this health entry?')) return;
-    try {
-      await deleteDoc(doc(db, 'health', entryId));
-      toast.success('Health entry deleted');
-      loadHealthData();
-    } catch (error) {
-      console.error('Error deleting health entry:', error);
-      toast.error('Failed to delete health entry');
-    }
-  };
-
-  const handleEditEntry = (entry) => {
-    setEditingId(entry.id);
-    setNewEntry({
-      type: entry.type,
-      duration: entry.duration ? entry.duration.toString() : '',
-      intensity: entry.intensity || 'medium',
-      description: entry.description || '',
-      calories: entry.calories ? entry.calories.toString() : '',
-      hours: entry.hours ? entry.hours.toString() : '',
-      quality: entry.quality ? entry.quality.toString() : '7'
-    });
-    setShowAdd(true);
-  };
-
-  const handleCancel = () => {
-    setShowAdd(false);
-    setEditingId(null);
-    setNewEntry({ type: 'workout', duration: '', intensity: 'medium', description: '', calories: '', hours: '', quality: '7' });
-  };
-
-  const toDate = normalizeDate;
 
   const getWeeklyStats = () => {
     const now = new Date();
-    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-    const thisWeek = healthData.filter(entry => {
-      const d = toDate(entry.date);
-      return d && d >= startOfWeek;
-    });
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+    const thisWeekHealth = healthData.filter(e => normalizeDate(e.date) >= startOfWeek);
+    const thisWeekMood = moodData.filter(e => normalizeDate(e.date) >= startOfWeek);
     
     return {
-      workouts: thisWeek.filter(e => e.type === 'workout').length,
-      avgSleep: (thisWeek.filter(e => e.type === 'sleep').reduce((sum, e) => sum + (e.hours || 0), 0) / (thisWeek.filter(e => e.type === 'sleep').length || 1)).toFixed(1),
-      totalCalories: thisWeek.filter(e => e.type === 'workout').reduce((sum, e) => sum + (e.calories || 0), 0)
+      workouts: thisWeekHealth.filter(e => e.type === 'workout').length,
+      sleep: (thisWeekHealth.filter(e => e.type === 'sleep').reduce((acc, e) => acc + (e.hours || 0), 0) / (thisWeekHealth.filter(e => e.type === 'sleep').length || 1)).toFixed(1),
+      mood: (thisWeekMood.reduce((acc, e) => acc + (e.mood || 0), 0) / (thisWeekMood.length || 1)).toFixed(1),
+      meals: thisWeekHealth.filter(e => e.type === 'meal').length
     };
   };
 
   const stats = getWeeklyStats();
+  const latestMood = moodData[0]?.mood || 5;
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </Layout>
-    );
-  }
+  if (loading) return <Layout><HealthSkeleton /></Layout>;
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Health & Fitness</h1>
-            <p className="text-sm sm:text-base text-slate-400">Track workouts, sleep, meals, and wellness</p>
-          </div>
-          <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) handleCancel(); }}>
-            <DialogTrigger asChild>
-              <Button
-                data-testid="add-health-entry-button"
-                className="bg-[#8b5cf6] hover:bg-[#7c3aed] "
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Log Health Data
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="text-slate-200">{editingId ? 'Edit Health Entry' : 'Log Health Data'}</DialogTitle>
-              </DialogHeader>
-              <Tabs value={newEntry.type} onValueChange={(val) => setNewEntry({ ...newEntry, type: val })}>
-                <TabsList className="grid w-full grid-cols-3 bg-bg-card">
-                  <TabsTrigger value="workout" data-testid="tab-workout">Workout</TabsTrigger>
-                  <TabsTrigger value="sleep" data-testid="tab-sleep">Sleep</TabsTrigger>
-                  <TabsTrigger value="meal" data-testid="tab-meal">Meal</TabsTrigger>
-                </TabsList>
-                <form onSubmit={handleAddEntry} className="space-y-4 mt-4">
-                  <TabsContent value="workout" className="space-y-4">
-                    <div>
-                      <Label className="text-slate-300">Duration (minutes)</Label>
-                      <Input
-                        data-testid="workout-duration-input"
-                        type="number"
-                        value={newEntry.duration}
-                        onChange={(e) => setNewEntry({ ...newEntry, duration: e.target.value })}
-                        required
-                        placeholder="30"
-                        className="bg-bg-card border-slate-800 text-slate-200"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-slate-300">Intensity</Label>
-                      <Select value={newEntry.intensity} onValueChange={(val) => setNewEntry({ ...newEntry, intensity: val })}>
-                        <SelectTrigger className="bg-bg-card border-slate-800 text-slate-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-white/10">
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-slate-300">Calories Burned</Label>
-                      <Input
-                        data-testid="workout-calories-input"
-                        type="number"
-                        value={newEntry.calories}
-                        onChange={(e) => setNewEntry({ ...newEntry, calories: e.target.value })}
-                        placeholder="200"
-                        className="bg-bg-card border-slate-800 text-slate-200"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-slate-300">Description</Label>
-                      <Input
-                        data-testid="workout-description-input"
-                        value={newEntry.description}
-                        onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
-                        placeholder="Morning run"
-                        className="bg-bg-card border-slate-800 text-slate-200"
-                      />
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="sleep" className="space-y-4">
-                    <div>
-                      <Label className="text-slate-300">Hours of Sleep</Label>
-                      <Input
-                        data-testid="sleep-hours-input"
-                        type="number"
-                        step="0.5"
-                        value={newEntry.hours}
-                        onChange={(e) => setNewEntry({ ...newEntry, hours: e.target.value })}
-                        required
-                        placeholder="7.5"
-                        className="bg-bg-card border-slate-800 text-slate-200"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-slate-300">Sleep Quality (1-10)</Label>
-                      <Input
-                        data-testid="sleep-quality-input"
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={newEntry.quality}
-                        onChange={(e) => setNewEntry({ ...newEntry, quality: e.target.value })}
-                        required
-                        className="bg-bg-card border-slate-800 text-slate-200"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-slate-300">Notes</Label>
-                      <Input
-                        data-testid="sleep-notes-input"
-                        value={newEntry.description}
-                        onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
-                        placeholder="Slept well"
-                        className="bg-bg-card border-slate-800 text-slate-200"
-                      />
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="meal" className="space-y-4">
-                    <div>
-                      <Label className="text-slate-300">Meal Type</Label>
-                      <Select value={newEntry.intensity} onValueChange={(val) => setNewEntry({ ...newEntry, intensity: val })}>
-                        <SelectTrigger className="bg-bg-card border-slate-800 text-slate-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-white/10">
-                          <SelectItem value="breakfast">Breakfast</SelectItem>
-                          <SelectItem value="lunch">Lunch</SelectItem>
-                          <SelectItem value="dinner">Dinner</SelectItem>
-                          <SelectItem value="snack">Snack</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-slate-300">Description</Label>
-                      <Input
-                        data-testid="meal-description-input"
-                        value={newEntry.description}
-                        onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
-                        required
-                        placeholder="Oats with fruits"
-                        className="bg-bg-card border-slate-800 text-slate-200"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-slate-300">Estimated Calories</Label>
-                      <Input
-                        data-testid="meal-calories-input"
-                        type="number"
-                        value={newEntry.calories}
-                        onChange={(e) => setNewEntry({ ...newEntry, calories: e.target.value })}
-                        placeholder="400"
-                        className="bg-bg-card border-slate-800 text-slate-200"
-                      />
-                    </div>
-                  </TabsContent>
-                  
-                  <div className="flex gap-3">
-                    <Button type="submit" className="flex-1 bg-[#8b5cf6] hover:bg-[#7c3aed]">
-                      {editingId ? 'Update Entry' : 'Log Entry'}
-                    </Button>
-                    <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
-                      <X className="w-4 h-4 mr-2" />
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </Tabs>
-            </DialogContent>
-          </Dialog>
-        </div>
+      <div className="max-w-container mx-auto space-y-8">
+        {/* Smart Insights */}
+        <SmartInsights data={healthData} type="health" />
 
-        {/* Weekly Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <DataCard
-            title="This Week Workouts"
-            value={stats.workouts}
-            icon={Activity}
-          />
-          <DataCard
-            title="Avg Sleep"
-            value={`${stats.avgSleep}h`}
-            icon={Moon}
-          />
-          <DataCard
-            title="Calories Burned"
-            value={stats.totalCalories}
-            icon={Heart}
-          />
-        </div>
-
-        {/* Recent Activity */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Activity</h2>
-          {healthData.length === 0 ? (
-            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
-              <Heart className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2 text-slate-400">No health data logged yet</h3>
-              <p className="text-slate-500 mb-6">Start tracking your health journey</p>
-              <Button onClick={() => setShowAdd(true)} className="bg-[#8b5cf6] hover:bg-[#7c3aed]">
-                <Plus className="w-4 h-4 mr-2" />
-                Log Your First Entry
-              </Button>
+        {/* Hero Card */}
+        <div className={`bg-gradient-to-br ${CATEGORY_THEMES.health.gradient} rounded-2xl p-8 text-white`}>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div>
+              <h1 className="text-white mb-2">Feeling {latestMood > 7 ? 'Great' : latestMood > 4 ? 'Okay' : 'Tired'}?</h1>
+              <p className="text-emerald-50/80">You've completed {stats.workouts} workouts this week. Keep pushing! 🚀</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {healthData.slice(0, 10).map(entry => (
-                <div
-                  key={entry.id}
-                  data-testid={`health-entry-${entry.id}`}
-                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        entry.type === 'workout' ? 'bg-[#8b5cf6]/20' :
-                        entry.type === 'sleep' ? 'bg-violet-500/20' : 'bg-emerald-500/20'
-                      }`}>
-                        {entry.type === 'workout' && <Activity className="w-6 h-6 text-[#8b5cf6]" />}
-                        {entry.type === 'sleep' && <Moon className="w-6 h-6 text-violet-400" />}
-                        {entry.type === 'meal' && <Utensils className="w-6 h-6 text-emerald-400" />}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="font-semibold text-lg" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                            {entry.type === 'workout' ? 'Workout Session' :
-                             entry.type === 'sleep' ? 'Sleep Log' : 'Meal Log'}
-                          </h4>
-                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditEntry(entry)}
-                              className="border-[#8b5cf6]/50 text-[#8b5cf6] hover:bg-[#8b5cf6]/10"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteEntry(entry.id)}
-                              className="border-danger/50 text-danger hover:bg-danger/10"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        <p className="text-sm text-slate-400 mb-2">{formatDate(entry.date)}</p>
-                        {entry.description && <p className="text-slate-300">{entry.description}</p>}
-                      </div>
+            <div className="flex items-center gap-4 bg-white/20 p-4 rounded-2xl backdrop-blur-md">
+              <div className="text-4xl">{getMoodEmoji(latestMood)}</div>
+              <div>
+                <p className="text-xs uppercase font-bold text-emerald-100">Latest Mood</p>
+                <p className="text-xl font-bold">{latestMood}/10</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Compact Week Overview */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+          {[
+            { label: 'Workouts', value: stats.workouts, icon: Activity, color: 'text-orange-400', bgColor: CATEGORY_THEMES.health.bg, borderColor: CATEGORY_THEMES.health.border },
+            { label: 'Avg Sleep', value: `${stats.sleep}h`, icon: Moon, color: 'text-indigo-400', bgColor: 'bg-indigo-500/10', borderColor: 'border-indigo-500/30' },
+            { label: 'Avg Mood', value: stats.mood, icon: Smile, color: 'text-yellow-400', bgColor: CATEGORY_THEMES.mood.bg, borderColor: CATEGORY_THEMES.mood.border },
+            { label: 'Meals Logged', value: stats.meals, icon: Utensils, color: 'text-rose-400', bgColor: 'bg-rose-500/10', borderColor: 'border-rose-500/30' },
+          ].map((item, idx) => (
+            <div key={idx} className={`bg-card/50 border ${item.borderColor} p-5 rounded-2xl flex items-center gap-4 hover:bg-card/70 transition-all`}>
+              <div className={`p-2.5 rounded-xl ${item.bgColor} ${item.color}`}>
+                <item.icon className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-overline uppercase tracking-widest text-muted-foreground font-medium">{item.label}</p>
+                <p className="text-xl font-bold mt-0.5">{item.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs Section */}
+        <CollapsibleSection
+          title="Health Metrics"
+          icon={BarChart3}
+          summary={`${stats.workouts} workouts, ${stats.sleep}h avg sleep this week`}
+          defaultOpen={true}
+          borderColor={CATEGORY_THEMES.health.border}
+        >
+          <Tabs defaultValue="workout" onValueChange={setActiveTab}>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <TabsList className="bg-muted w-full md:w-auto overflow-x-auto">
+                <TabsTrigger value="workout">Workouts</TabsTrigger>
+                <TabsTrigger value="sleep">Sleep</TabsTrigger>
+                <TabsTrigger value="meal">Meals</TabsTrigger>
+                <TabsTrigger value="mood">Mood</TabsTrigger>
+              </TabsList>
+              <DataExport data={healthData} columns={EXPORT_COLUMNS.health} title="Health Data" />
+            </div>
+
+            <TabsContent value="workout" className="space-y-6">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={healthData.filter(e => e.type === 'workout').slice(0, 7).reverse()}>
+                    <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, {weekday: 'short'})} />
+                    <YAxis />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} />
+                    <Bar dataKey="duration" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid gap-4">
+                {healthData.filter(e => e.type === 'workout').slice(0, 5).map(e => (
+                  <div key={e.id} className="flex justify-between items-center p-4 bg-muted/30 rounded-xl">
+                    <div>
+                      <p className="font-bold">{e.description || 'Workout'}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(e.date)}</p>
                     </div>
                     <div className="text-right">
-                      {entry.type === 'workout' && (
-                        <div>
-                          <p className="text-2xl font-bold text-[#8b5cf6]">{entry.duration}min</p>
-                          <p className="text-sm text-slate-500">{entry.calories || 0} cal</p>
-                        </div>
-                      )}
-                      {entry.type === 'sleep' && (
-                        <div>
-                          <p className="text-2xl font-bold text-violet-400">{entry.hours}h</p>
-                          <p className="text-sm text-slate-500">Quality: {entry.quality}/10</p>
-                        </div>
-                      )}
-                      {entry.type === 'meal' && (
-                        <div>
-                          <p className="text-2xl font-bold text-emerald-400">{entry.calories || 0}</p>
-                          <p className="text-sm text-slate-500">calories</p>
-                        </div>
-                      )}
+                      <p className="font-bold">{e.duration} min</p>
+                      <p className="text-xs text-emerald-400">{e.calories} kcal</p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="sleep" className="space-y-6">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={healthData.filter(e => e.type === 'sleep').slice(0, 7).reverse()}>
+                    <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, {weekday: 'short'})} />
+                    <YAxis />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} />
+                    <Line type="monotone" dataKey="hours" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid gap-4">
+                {healthData.filter(e => e.type === 'sleep').slice(0, 5).map(e => (
+                  <div key={e.id} className="flex justify-between items-center p-4 bg-muted/30 rounded-xl">
+                    <div>
+                      <p className="font-bold">{e.hours} Hours</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(e.date)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">Quality: {e.quality}/10</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="meal" className="space-y-4">
+              <div className="grid gap-4">
+                {healthData.filter(e => e.type === 'meal').slice(0, 10).map(e => (
+                  <div key={e.id} className="flex justify-between items-center p-4 bg-muted/30 rounded-xl">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded-lg bg-orange-500/10 text-orange-400">
+                        <Utensils className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="font-bold capitalize">{e.intensity}</p>
+                        <p className="text-xs text-muted-foreground">{e.description}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-bold">{e.calories} kcal</p>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="mood" className="space-y-6">
+              <div className="grid grid-cols-7 gap-2">
+                {moodData.slice(0, 14).reverse().map(e => (
+                  <div key={e.id} className="aspect-square flex flex-col items-center justify-center bg-muted/30 rounded-xl border border-border hover:border-violet-500/30 transition-all">
+                    <span className="text-2xl">{getMoodEmoji(e.mood)}</span>
+                    <span className="text-[10px] text-muted-foreground mt-1">{new Date(e.date).toLocaleDateString(undefined, {weekday: 'short'})}</span>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CollapsibleSection>
       </div>
+
+      {/* Add Button */}
+      <Button 
+        onClick={() => setShowAdd(true)}
+        className="fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-lg bg-violet-600 hover:bg-violet-500 lg:bottom-10"
+      >
+        <Plus className="w-6 h-6" />
+      </Button>
+
+      <ResponsiveDialog
+        isOpen={showAdd}
+        setIsOpen={setShowAdd}
+        title="Log Health Entry"
+        description="Track your workouts, sleep, and meals"
+      >
+        <HealthForm
+          newEntry={newEntry}
+          setNewEntry={setNewEntry}
+          onSubmit={handleAddEntry}
+          submitting={submitting}
+        />
+      </ResponsiveDialog>
     </Layout>
   );
 }

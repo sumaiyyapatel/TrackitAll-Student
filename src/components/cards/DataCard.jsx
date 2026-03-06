@@ -2,23 +2,23 @@ import React from 'react';
 
 /**
  * DataCard - Displays data/stats with icon, title, and value
- * No color props, no trends, no shadows
+ * Supports optional category theming for distinct color coding
  * Hover: border color change only
  * Padding: p-6 (enforced)
  */
-export const DataCard = ({ title, value, icon: Icon, testId, className = '' }) => {
+export const DataCard = ({ title, value, icon: Icon, testId, className = '', borderColor = 'border-white/10', iconBg = 'bg-violet-600' }) => {
   return (
     <div 
       data-testid={testId}
-      className={`bg-bg-card border border-white/10 rounded-2xl p-6 hover:border-[#8b5cf6]/30 transition-all ${className}`}
+      className={`bg-bg-card border ${borderColor} rounded-2xl p-6 hover:border-violet-500/30 transition-all ${className}`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm text-slate-400 mb-1">{title}</p>
-          <h3 className="text-3xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{value}</h3>
+          <p className="text-overline uppercase tracking-widest text-muted-foreground mb-2">{title}</p>
+          <h3 className="text-3xl font-bold font-outfit">{value}</h3>
         </div>
         {Icon && (
-          <div className="w-12 h-12 rounded-xl bg-[#8b5cf6] flex items-center justify-center">
+          <div className={`w-12 h-12 rounded-xl ${iconBg} flex items-center justify-center`}>
             <Icon className="w-6 h-6 text-white" />
           </div>
         )}

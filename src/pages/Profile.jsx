@@ -166,7 +166,7 @@ export default function Profile() {
               <p className="text-slate-400">No badges earned yet. Keep logging data to unlock achievements!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
               {userStats.badges.map((badge, index) => (
                 <div
                   key={index}
@@ -185,7 +185,7 @@ export default function Profile() {
         {/* Streaks */}
         <div>
           <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Streaks</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="text-2xl">📅</div>

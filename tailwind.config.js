@@ -6,6 +6,29 @@ module.exports = {
 	],
   theme: {
   	extend: {
+  		fontSize: {
+  			'h1': ['36px', { lineHeight: '1.15', fontWeight: '700', letterSpacing: '-0.02em' }],
+  			'h2': ['26px', { lineHeight: '1.2', fontWeight: '600', letterSpacing: '-0.01em' }],
+  			'h3': ['18px', { lineHeight: '1.3', fontWeight: '600' }],
+  			'body': ['14px', { lineHeight: '1.6' }],
+  			'body-sm': ['13px', { lineHeight: '1.5' }],
+  			'caption': ['11px', { lineHeight: '1.4', fontWeight: '500' }],
+  			'overline': ['10px', { lineHeight: '1.4', fontWeight: '600', letterSpacing: '0.1em' }],
+  		},
+  		spacing: {
+  			'1': '4px',
+  			'2': '8px',
+  			'3': '12px',
+  			'4': '16px',
+  			'5': '20px',
+  			'6': '24px',
+  			'8': '32px',
+  			'10': '40px',
+  			'12': '48px',
+  		},
+  		maxWidth: {
+  			'container': '1200px',
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
@@ -74,11 +97,33 @@ module.exports = {
   				to: {
   					height: '0'
   				}
+  			},
+  			'collapsible-down': {
+  				from: {
+  					height: '0',
+  					opacity: '0'
+  				},
+  				to: {
+  					height: 'var(--radix-collapsible-content-height)',
+  					opacity: '1'
+  				}
+  			},
+  			'collapsible-up': {
+  				from: {
+  					height: 'var(--radix-collapsible-content-height)',
+  					opacity: '1'
+  				},
+  				to: {
+  					height: '0',
+  					opacity: '0'
+  				}
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'collapsible-down': 'collapsible-down 0.3s ease-out',
+  			'collapsible-up': 'collapsible-up 0.3s ease-out'
   		}
   	}
   },

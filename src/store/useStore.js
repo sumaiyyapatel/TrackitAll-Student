@@ -18,12 +18,35 @@ const useStore = create(
           attendance: 0,
           mood: 0,
           health: 0
-        }
+        },
+        monthlyBudget: 0,
+        monthlySavingsGoal: 0
       },
       setUser: (user) => set({ user }),
-      setUserStats: (stats) => set({ userStats: stats }),
+      setUserStats: (stats) => set({ userStats: { ...get().userStats, ...stats } }),
       
-      // Updated to use setDoc with merge instead of updateDoc
+      updateFinancialGoals: async (budget, savingsGoal) => {
+        const state = get();
+        const newStats = {
+          ...state.userStats,
+          monthlyBudget: budget,
+          monthlySavingsGoal: savingsGoal
+        };
+
+        set({ userStats: newStats });
+
+        if (state.user?.uid) {
+          try {
+            const userRef = doc(db, 'users', state.user.uid);
+            await setDoc(userRef, {
+              monthlyBudget: budget,
+              monthlySavingsGoal: savingsGoal
+            }, { merge: true });
+          } catch (error) {
+            console.error('Error saving financial goals:', error);
+          }
+        }
+      },
       addPoints: (points) => {
         // Chain updates onto the internal _updateQueue so multiple calls serialize
         _updateQueue = _updateQueue.then(async () => {

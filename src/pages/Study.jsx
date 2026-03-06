@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { CollapsibleSection } from '@/components/CollapsibleSection';
+import { ViewToggle } from '@/components/ViewToggle';
+import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
 import { BookOpen, Plus, Clock, TrendingUp, GraduationCap, Target, Timer, Trash2, Edit2, X } from 'lucide-react';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
@@ -15,6 +18,7 @@ import { calculateDaysRemaining, formatDate } from '@/utils/helpers';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { POINTS } from '@/utils/gamification';
 import { DataCard } from '@/components/cards/DataCard';
+import { CATEGORY_THEMES } from '@/utils/categoryColors';
 
 export default function Study() {
   const { user, addPoints } = useStore();
@@ -38,6 +42,7 @@ export default function Study() {
     date: '',
     syllabus: ''
   });
+  const [studyView, setStudyView] = useState('quick');
 
   useEffect(() => {
     if (user) {
@@ -257,17 +262,16 @@ export default function Study() {
     <Layout>
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Study Tools</h1>
-            <p className="text-slate-400">Track study sessions, manage exams, and stay focused</p>
-          </div>
-        </div>
+        <SectionHeader
+          title="Study Tools"
+          subtitle="Track study sessions, manage exams, and stay focused"
+          level="page"
+        />
 
         {/* Stats & Pomodoro */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Pomodoro Timer */}
-          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
+          <div className={`bg-bg-card backdrop-blur-md border ${CATEGORY_THEMES.study.border} rounded-2xl p-6`}>
             <div className="flex items-center gap-2 mb-4">
               <Timer className="w-5 h-5 text-violet-400" />
               <h3 className="font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Pomodoro Timer</h3>
@@ -321,15 +325,19 @@ export default function Study() {
 
         {/* Tabs */}
         <Tabs defaultValue="sessions" className="space-y-6">
-          <TabsList className="bg-bg-card border border-white/10">
+          <TabsList className={`bg-bg-card border ${CATEGORY_THEMES.study.border}`}>
             <TabsTrigger value="sessions" data-testid="tab-sessions">Study Sessions</TabsTrigger>
             <TabsTrigger value="exams" data-testid="tab-exams">Upcoming Exams</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sessions">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Study Sessions</h2>
-              <Dialog open={showAddSession} onOpenChange={(open) => { setShowAddSession(open); if (!open) handleCancelSession(); }}>
+            <SectionHeader
+              title="Study Sessions"
+              level="section"
+              action={
+                <div className="flex items-center gap-3">
+                  <ViewToggle view={studyView} onViewChange={setStudyView} />
+                  <Dialog open={showAddSession} onOpenChange={(open) => { setShowAddSession(open); if (!open) handleCancelSession(); }}>
                 <DialogTrigger asChild>
                   <Button data-testid="add-session-button" className="bg-violet-600 hover:bg-violet-500">
                     <Plus className="w-4 h-4 mr-2" />
@@ -384,7 +392,9 @@ export default function Study() {
                   </form>
                 </DialogContent>
               </Dialog>
-            </div>
+                </div>
+              }
+            />
 
             {studySessions.length === 0 ? (
         <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
@@ -398,11 +408,11 @@ export default function Study() {
               </div>
             ) : (
               <div className="space-y-4">
-                {studySessions.map(session => (
+                {studySessions.slice(0, studyView === 'quick' ? 5 : studySessions.length).map(session => (
                   <div
                     key={session.id}
                     data-testid={`session-${session.id}`}
-                    className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
+                    className={`bg-bg-card backdrop-blur-md border ${CATEGORY_THEMES.study.border} rounded-2xl p-6 ${CATEGORY_THEMES.study.hoverBorder} transition-all group`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -443,9 +453,11 @@ export default function Study() {
           </TabsContent>
 
           <TabsContent value="exams">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Upcoming Exams</h2>
-              <Dialog open={showAddExam} onOpenChange={(open) => { setShowAddExam(open); if (!open) handleCancelExam(); }}>
+            <SectionHeader
+              title="Upcoming Exams"
+              level="section"
+              action={
+                <Dialog open={showAddExam} onOpenChange={(open) => { setShowAddExam(open); if (!open) handleCancelExam(); }}>
                 <DialogTrigger asChild>
                   <Button data-testid="add-exam-button" className="bg-amber-600 hover:bg-amber-500">
                     <Plus className="w-4 h-4 mr-2" />
@@ -499,7 +511,8 @@ export default function Study() {
                   </form>
                 </DialogContent>
               </Dialog>
-            </div>
+              }
+            />
 
             {upcomingExams.length === 0 ? (
               <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
@@ -512,7 +525,7 @@ export default function Study() {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 {upcomingExams.map(exam => {
                   const daysRemaining = calculateDaysRemaining(exam.date);
                   return (
