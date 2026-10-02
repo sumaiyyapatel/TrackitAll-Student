@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
+import { PageHeader } from '@/components/game/PageHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { Droplets, Plus, TrendingUp, Calendar, Award, Minus, RotateCcw } from 'lucide-react';
 import { db, collection, addDoc, getDocs, query, where, orderBy, limit, deleteDoc, doc } from '@/lib/localDb';
 import { userRecent } from '@/utils/canonicalQueries';
@@ -8,7 +10,6 @@ import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { POINTS } from '@/utils/gamification';
 import { formatDate } from '@/utils/helpers';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { DataCard } from '@/components/cards/DataCard';
@@ -16,7 +17,8 @@ import { DataCard } from '@/components/cards/DataCard';
 const DAILY_GOAL = 8; // 8 glasses
 
 export default function WaterTracker() {
-  const { user, addPoints } = useStore();
+  const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [waterLogs, setWaterLogs] = useState([]);
   const [todayGlasses, setTodayGlasses] = useState(0);
   const [weeklyData, setWeeklyData] = useState([]);
@@ -98,9 +100,10 @@ export default function WaterTracker() {
       const newTotal = todayGlasses + 1;
       setTodayGlasses(newTotal);
       
+      recordActivity('water');
       if (newTotal === DAILY_GOAL) {
-        addPoints(POINTS.DAILY_STREAK);
-        toast.success(`🎉 +${POINTS.DAILY_STREAK} XP! Daily goal achieved!`);
+        recordActivity('water_goal');
+        toast.success('🎉 Hydration goal reached!');
       } else {
         toast.success('💧 Glass logged!');
       }
@@ -176,10 +179,7 @@ export default function WaterTracker() {
     <Layout>
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Water Tracker 💧</h1>
-          <p className="text-slate-400">Stay hydrated for better health and focus</p>
-        </div>
+        <PageHeader subtitle="Stay hydrated for better health and focus" />
 
         {/* Today's Progress */}
         <div className="bg-info/20 backdrop-blur-md border border-cyan-500/30 rounded-2xl p-8">
@@ -187,10 +187,10 @@ export default function WaterTracker() {
             <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-cyan-500/20 mb-4">
               <Droplets className="w-16 h-16 text-cyan-400" />
             </div>
-            <h2 className="text-6xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
+            <h2 className="text-6xl font-bold mb-2">
               {todayGlasses}/{DAILY_GOAL}
             </h2>
-            <p className="text-slate-300">glasses today</p>
+            <p className="text-foreground">glasses today</p>
           </div>
 
           <Progress value={progress} className="h-4 mb-4" />
@@ -217,7 +217,7 @@ export default function WaterTracker() {
               onClick={handleResetToday}
               disabled={todayGlasses <= 0}
               variant="ghost"
-              className="text-slate-400 hover:text-danger hover:bg-danger/10 px-4 sm:px-8 py-3 sm:py-6 text-base sm:text-lg"
+              className="text-muted-foreground hover:text-danger hover:bg-danger/10 px-4 sm:px-8 py-3 sm:py-6 text-base sm:text-lg"
             >
               <RotateCcw className="w-6 h-6 mr-2" />
               Reset
@@ -259,8 +259,8 @@ export default function WaterTracker() {
         </div>
 
         {/* Weekly Chart */}
-        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-          <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Weekly Hydration</h2>
+        <div className="duo-card p-6">
+          <h2 className="text-2xl font-bold mb-6">Weekly Hydration</h2>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={weeklyData}>
               <XAxis dataKey="day" stroke="#94a3b8" />
@@ -275,17 +275,17 @@ export default function WaterTracker() {
         </div>
 
         {/* Tips */}
-        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Hydration Tips 💡</h2>
+        <div className="duo-card p-6">
+          <h2 className="text-2xl font-bold mb-4">Hydration Tips 💡</h2>
           <div className="space-y-3">
             <div className="p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">
-              <p className="text-sm text-slate-300"><span className="font-semibold text-cyan-400">Morning Boost:</span> Start your day with 2 glasses of water</p>
+              <p className="text-sm text-foreground"><span className="font-semibold text-cyan-400">Morning Boost:</span> Start your day with 2 glasses of water</p>
             </div>
             <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-              <p className="text-sm text-slate-300"><span className="font-semibold text-blue-400">Before Meals:</span> Drink a glass 30 minutes before eating</p>
+              <p className="text-sm text-foreground"><span className="font-semibold text-blue-400">Before Meals:</span> Drink a glass 30 minutes before eating</p>
             </div>
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-              <p className="text-sm text-slate-300"><span className="font-semibold text-emerald-400">Exercise:</span> Extra 2-3 glasses when you workout</p>
+              <p className="text-sm text-foreground"><span className="font-semibold text-emerald-400">Exercise:</span> Extra 2-3 glasses when you workout</p>
             </div>
           </div>
         </div>

@@ -7,14 +7,14 @@ export const AttendanceForm = ({ courses, selectedCourse, setSelectedCourse, onS
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <Label className="text-slate-300">Select Course</Label>
+        <Label className="text-foreground">Select Course</Label>
         <Select value={selectedCourse} onValueChange={setSelectedCourse} required>
-          <SelectTrigger data-testid="course-select" className="bg-slate-950 border-slate-800 text-slate-200">
+          <SelectTrigger data-testid="course-select" className="bg-background border-border text-foreground">
             <SelectValue placeholder="Choose a course" />
           </SelectTrigger>
-          <SelectContent className="bg-slate-900 border-white/10">
+          <SelectContent className="bg-card border-border">
             {courses.map(course => (
-              <SelectItem key={course.id} value={course.id} className="text-slate-200">
+              <SelectItem key={course.id} value={course.id} className="text-foreground">
                 {course.name} ({course.code})
               </SelectItem>
             ))}

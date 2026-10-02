@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { Mascot } from '@/components/game/Mascot';
+import { PageHeader } from '@/components/game/PageHeader';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { ViewToggle } from '@/components/ViewToggle';
 import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { Calendar, Plus, Check, X, Edit2, Trash2 } from 'lucide-react';
 import { db, collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from '@/lib/localDb';
 import { normalizeDate } from '@/utils/dateNormalizer';
@@ -13,11 +16,11 @@ import { AttendanceForm } from '@/components/forms/AttendanceForm';
 import { CourseForm } from '@/components/forms/CourseForm';
 import { toast } from 'sonner';
 import { getAttendanceColor, formatDate } from '@/utils/helpers';
-import { POINTS } from '@/utils/gamification';
 import { CATEGORY_THEMES } from '@/utils/categoryColors';
 
 export default function Attendance() {
-  const { user, addPoints } = useStore();
+  const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [courses, setCourses] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -139,8 +142,8 @@ export default function Attendance() {
         date: new Date().toISOString(),
         userId: user.uid
       });
-      addPoints(POINTS.MARK_ATTENDANCE);
-      toast.success(`+${POINTS.MARK_ATTENDANCE} XP! Attendance marked`);
+      recordActivity('attendance');
+      toast.success('Attendance marked');
       setShowMarkAttendance(false);
       setSelectedCourse('');
       await loadData();
@@ -179,13 +182,8 @@ export default function Attendance() {
     <Layout>
       <div className="max-w-container mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <SectionHeader
-            title="Attendance Tracker"
-            subtitle="Track your class attendance and maintain consistency"
-            level="page"
-            className="mb-0"
-          />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <PageHeader subtitle="Track your class attendance and maintain consistency" />
           <div className="flex gap-3">
             <ResponsiveDialog
               isOpen={showMarkAttendance}
@@ -195,7 +193,7 @@ export default function Attendance() {
               trigger={
                 <Button
                   data-testid="mark-attendance-button"
-                  className={`${CATEGORY_THEMES.attendance.button} shadow-[0_0_15px_rgba(139,92,246,0.5)]`}
+                  className={`${CATEGORY_THEMES.attendance.button}`}
                 >
                   <Check className="w-4 h-4 mr-2" />
                   Mark Attendance
@@ -217,7 +215,7 @@ export default function Attendance() {
               title={editingCourseId ? 'Edit Course' : 'Add New Course'}
               description={editingCourseId ? 'Edit course details' : 'Add a new course to track attendance'}
               trigger={
-                <Button data-testid="add-course-button" variant="outline" className="border-white/10 text-foreground">
+                <Button data-testid="add-course-button" variant="outline" className="border-border text-foreground">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Course
                 </Button>
@@ -259,7 +257,7 @@ export default function Attendance() {
         {/* Course List */}
         {courses.length === 0 ? (
           <div className="text-center py-20">
-            <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-4" />
+            <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
             <h3 className="text-muted-foreground">No courses added yet</h3>
             <p className="text-muted-foreground mb-6">Add your first course to start tracking attendance</p>
             <Button onClick={() => setShowAddCourse(true)} className={CATEGORY_THEMES.attendance.button}>
@@ -279,7 +277,7 @@ export default function Attendance() {
                 <div
                   key={course.id}
                   data-testid={`course-${course.id}`}
-                  className={`bg-card/50 backdrop-blur-md border ${CATEGORY_THEMES.attendance.border} rounded-2xl p-6 ${CATEGORY_THEMES.attendance.hoverBorder} transition-all group`}
+                  className={`bg-card border-2 ${CATEGORY_THEMES.attendance.border} rounded-2xl p-6 ${CATEGORY_THEMES.attendance.hoverBorder} transition-all group`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -287,7 +285,7 @@ export default function Attendance() {
                         <span className={`text-2xl font-bold ${getAttendanceColor(stats.percentage)}`}>{stats.percentage}%</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                        <h3 className="font-semibold truncate">
                           {course.name}
                         </h3>
                         <p className="text-body-sm text-muted-foreground">

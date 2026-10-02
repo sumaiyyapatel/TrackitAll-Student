@@ -27,15 +27,15 @@ export const CollapsibleSection = ({
 
   return (
     <div className={cn(
-      'bg-card/50 backdrop-blur-md border rounded-2xl overflow-hidden transition-all duration-300',
+      'bg-card border-2 rounded-2xl overflow-hidden transition-all duration-300',
       borderColor,
-      isOpen && 'ring-1 ring-white/5',
+      isOpen && 'border-primary/40',
       className
     )}>
       {/* Header - always visible */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-6 text-left hover:bg-muted/30 transition-colors group"
+        className="w-full flex items-center justify-between p-5 text-left hover:bg-muted/30 transition-colors group"
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -46,7 +46,7 @@ export const CollapsibleSection = ({
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
-              <h3 className="font-semibold truncate" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              <h3 className="font-extrabold truncate">
                 {title}
               </h3>
               {badge && (

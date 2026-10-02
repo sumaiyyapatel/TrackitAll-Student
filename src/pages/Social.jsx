@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { Mascot } from '@/components/game/Mascot';
+import { PageHeader } from '@/components/game/PageHeader';
 import useStore from '@/store/useStore';
 import { Users, Plus, Trophy, TrendingUp, Target, Search, UserPlus, Check, X, Trash2 } from 'lucide-react';
 import { db, collection, addDoc, query, where, getDocs, updateDoc, doc, getDoc, deleteDoc } from '@/lib/localDb';
@@ -194,10 +196,7 @@ export default function Social() {
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Social</h1>
-            <p className="text-sm sm:text-base text-slate-400">Connect with friends and track progress together</p>
-          </div>
+          <PageHeader subtitle="Connect with friends and track progress together" />
           <Dialog open={showAddFriend} onOpenChange={setShowAddFriend}>
             <DialogTrigger asChild>
               <Button
@@ -208,9 +207,9 @@ export default function Social() {
                 Add Friend
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="bg-card border-border w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">Add Friend</DialogTitle>
+                <DialogTitle className="text-foreground">Add Friend</DialogTitle>
                 <DialogDescription className="sr-only">
                   Search for users by email to send friend requests
                 </DialogDescription>
@@ -224,7 +223,7 @@ export default function Social() {
                     onChange={(e) => setSearchEmail(e.target.value)}
                     required
                     placeholder="friend@example.com"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <Button type="submit" className="w-full bg-violet-600 hover:bg-violet-500">
@@ -258,21 +257,21 @@ export default function Social() {
         {/* Friend Requests */}
         {friendRequests.length > 0 && (
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Friend Requests</h2>
+            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Friend Requests</h2>
             <div className="space-y-3">
               {friendRequests.map(request => (
                 <div
                   key={request.id}
                   data-testid={`friend-request-${request.id}`}
-                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center justify-between"
+                  className="duo-card p-4 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white font-semibold">
+                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
                       {request.user1Name?.charAt(0) || 'U'}
                     </div>
                     <div>
                       <p className="font-semibold">{request.user1Name}</p>
-                      <p className="text-xs text-slate-500">wants to be friends</p>
+                      <p className="text-xs text-muted-foreground">wants to be friends</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -287,7 +286,7 @@ export default function Social() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleRejectRequest(request.id)}
-                      className="border-white/10 hover:bg-danger/10"
+                      className="border-border hover:bg-danger/10"
                     >
                       <X className="w-4 h-4" />
                     </Button>
@@ -300,12 +299,12 @@ export default function Social() {
 
         {/* Friends List */}
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Your Friends</h2>
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Your Friends</h2>
           {friends.length === 0 ? (
-            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
-              <Users className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2 text-slate-400">No friends yet</h3>
-              <p className="text-slate-500 mb-6">Add friends to compete and motivate each other</p>
+            <div className="text-center py-20 duo-card">
+              <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
+              <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No friends yet</h3>
+              <p className="text-muted-foreground mb-6">Add friends to compete and motivate each other</p>
               <Button onClick={() => setShowAddFriend(true)} className="bg-violet-600 hover:bg-violet-500">
                 <UserPlus className="w-4 h-4 mr-2" />
                 Add Your First Friend
@@ -322,19 +321,19 @@ export default function Social() {
                   <div
                     key={friendship.id}
                     data-testid={`friend-${friendship.id}`}
-                    className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all group"
+                    className="duo-card p-6 hover:border-violet-500/30 transition-all group"
                   >
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white text-xl font-semibold">
+                      <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-xl font-semibold">
                         {friendName?.charAt(0) || 'F'}
                       </div>
                       <div>
                         <p className="font-semibold">{friendName}</p>
-                        <p className="text-xs text-slate-500">Level {friendData?.level || 1}</p>
+                        <p className="text-xs text-muted-foreground">Level {friendData?.level || 1}</p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                      <span className="text-xs text-slate-400">Points</span>
+                    <div className="flex items-center justify-between pt-3 border-t border-border">
+                      <span className="text-xs text-muted-foreground">Points</span>
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold text-amber-400">{friendData?.points || 0}</span>
                         <Button

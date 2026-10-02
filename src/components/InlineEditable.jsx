@@ -54,8 +54,8 @@ export default function InlineEditable({
     <div className={`inline-editable ${className}`}>
       {!editing ? (
         <div className="flex items-center gap-3">
-          <div className="truncate text-slate-200">{initialValue || <span className="text-slate-500">(empty)</span>}</div>
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="text-slate-300">
+          <div className="truncate text-foreground">{initialValue || <span className="text-muted-foreground">(empty)</span>}</div>
+          <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="text-foreground">
             Edit
           </Button>
         </div>
@@ -66,7 +66,7 @@ export default function InlineEditable({
               ref={ref}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="bg-slate-950 border-slate-800 text-slate-200 flex-1"
+              className="bg-background border-border text-foreground flex-1"
               rows={4}
             />
           ) : (
@@ -75,7 +75,7 @@ export default function InlineEditable({
               value={value}
               onChange={(e) => setValue(e.target.value)}
               type={inputType}
-              className="bg-slate-950 border-slate-800 text-slate-200 flex-1"
+              className="bg-background border-border text-foreground flex-1"
             />
           )}
 

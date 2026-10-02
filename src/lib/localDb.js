@@ -133,10 +133,25 @@ export const setDoc = async (ref, data, options = {}) => {
   save();
 };
 
+// Apply updates where keys may be dotted paths ('participants.uid.progress' sets a nested field)
+const applyUpdates = (target, data) => {
+  const result = clone(target) || {};
+  Object.entries(clone(data)).forEach(([key, value]) => {
+    const path = key.split('.');
+    let node = result;
+    path.slice(0, -1).forEach(part => {
+      if (typeof node[part] !== 'object' || node[part] === null) node[part] = {};
+      node = node[part];
+    });
+    node[path[path.length - 1]] = value;
+  });
+  return result;
+};
+
 export const updateDoc = async (ref, data) => {
   const records = table(ref.collection);
   if (!records[ref.id]) throw new Error(`No document to update: ${ref.collection}/${ref.id}`);
-  records[ref.id] = { ...records[ref.id], ...clone(data) };
+  records[ref.id] = applyUpdates(records[ref.id], data);
   save();
 };
 

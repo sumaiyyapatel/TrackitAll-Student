@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
+import { Mascot } from '@/components/game/Mascot';
+import { PageHeader } from '@/components/game/PageHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { RefreshCw, Plus, Calendar, Trash2, Edit2 } from 'lucide-react';
 import { db, collection, addDoc, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, serverTimestamp } from '@/lib/localDb';
 import { Button } from '@/components/ui/button';
@@ -23,6 +26,7 @@ const CATEGORIES = ['Rent', 'Subscriptions', 'Bills', 'Insurance', 'EMI', 'Other
 
 export default function RecurringExpenses() {
   const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [recurring, setRecurring] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [newRecurring, setNewRecurring] = useState({
@@ -82,6 +86,7 @@ export default function RecurringExpenses() {
         createdAt: serverTimestamp(),
         lastProcessed: null
       });
+      recordActivity('recurring');
       toast.success('Recurring expense added!');
       setShowAdd(false);
       setNewRecurring({ name: '', amount: '', category: 'Subscriptions', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0] });
@@ -125,6 +130,7 @@ export default function RecurringExpenses() {
           createdAt: serverTimestamp(),
           lastProcessed: null
         });
+        recordActivity('recurring');
         toast.success('Recurring expense added!');
       }
 
@@ -215,8 +221,8 @@ export default function RecurringExpenses() {
     return (
       <Layout>
         <div className="space-y-4 max-w-5xl mx-auto">
-          <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/3 mb-3" /><div className="h-24 bg-slate-700 rounded" /></div>
-          <div className="p-6 bg-slate-800 rounded-2xl"><div className="h-6 bg-slate-700 rounded w-1/3 mb-3" /><div className="h-24 bg-slate-700 rounded" /></div>
+          <div className="p-6 bg-muted rounded-2xl"><div className="h-6 bg-muted rounded w-1/3 mb-3" /><div className="h-24 bg-muted rounded" /></div>
+          <div className="p-6 bg-muted rounded-2xl"><div className="h-6 bg-muted rounded w-1/3 mb-3" /><div className="h-24 bg-muted rounded" /></div>
         </div>
       </Layout>
     );
@@ -226,11 +232,8 @@ export default function RecurringExpenses() {
     <Layout>
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Recurring Expenses</h1>
-            <p className="text-slate-400">Manage your subscriptions and recurring bills</p>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <PageHeader subtitle="Manage your subscriptions and recurring bills" />
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
             <DialogTrigger asChild>
               <Button data-testid="add-recurring-button" className="bg-amber-600 hover:bg-amber-500" onClick={() => { setEditingId(null); setNewRecurring({ name: '', amount: '', category: 'Subscriptions', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0] }); }}>
@@ -238,24 +241,24 @@ export default function RecurringExpenses() {
                 Add Recurring
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="bg-card border-border w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">Add Recurring Expense</DialogTitle>
+                <DialogTitle className="text-foreground">Add Recurring Expense</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSave} className="space-y-4">
                 <div>
-                  <Label className="text-slate-300">Name</Label>
+                  <Label className="text-foreground">Name</Label>
                   <Input
                     data-testid="recurring-name-input"
                     value={newRecurring.name}
                     onChange={(e) => setNewRecurring({ ...newRecurring, name: e.target.value })}
                     required
                     placeholder="Netflix Subscription"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <Label className="text-slate-300">Amount (₹)</Label>
+                  <Label className="text-foreground">Amount (₹)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -263,16 +266,16 @@ export default function RecurringExpenses() {
                     onChange={(e) => setNewRecurring({ ...newRecurring, amount: e.target.value })}
                     required
                     placeholder="499"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <Label className="text-slate-300">Category</Label>
+                  <Label className="text-foreground">Category</Label>
                   <Select value={newRecurring.category} onValueChange={(val) => setNewRecurring({ ...newRecurring, category: val })}>
-                    <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                    <SelectTrigger className="bg-background border-border text-foreground">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-white/10">
+                    <SelectContent className="bg-card border-border">
                       {CATEGORIES.map(cat => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))}
@@ -280,12 +283,12 @@ export default function RecurringExpenses() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-slate-300">Frequency</Label>
+                  <Label className="text-foreground">Frequency</Label>
                   <Select value={newRecurring.frequency} onValueChange={(val) => setNewRecurring({ ...newRecurring, frequency: val })}>
-                    <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                    <SelectTrigger className="bg-background border-border text-foreground">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-white/10">
+                    <SelectContent className="bg-card border-border">
                       {FREQUENCIES.map(freq => (
                         <SelectItem key={freq.value} value={freq.value}>{freq.label}</SelectItem>
                       ))}
@@ -293,20 +296,20 @@ export default function RecurringExpenses() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-slate-300">Start Date</Label>
+                  <Label className="text-foreground">Start Date</Label>
                   <Input
                     type="date"
                     value={newRecurring.startDate}
                     onChange={(e) => setNewRecurring({ ...newRecurring, startDate: e.target.value })}
                     required
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div className="flex gap-3">
                   <Button type="submit" disabled={submitting} className="flex-1 bg-amber-600 hover:bg-amber-500">
                     {submitting ? (editingId ? 'Updating...' : 'Creating...') : (editingId ? 'Update' : 'Create')}
                   </Button>
-                  <Button type="button" onClick={resetForm} className="flex-1 bg-slate-700">
+                  <Button type="button" onClick={resetForm} className="flex-1 bg-muted">
                     Cancel
                   </Button>
                 </div>
@@ -331,10 +334,10 @@ export default function RecurringExpenses() {
 
         {/* Recurring List */}
         {recurring.length === 0 ? (
-          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-12 text-center">
-            <RefreshCw className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-            <h3 className="text-xl font-semibold mb-2 text-slate-400">No recurring expenses</h3>
-            <p className="text-slate-500 mb-6">Add subscriptions and bills to track automatically</p>
+          <div className="duo-card p-12 text-center">
+            <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
+            <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No recurring expenses</h3>
+            <p className="text-muted-foreground mb-6">Add subscriptions and bills to track automatically</p>
             <Button onClick={() => setShowAdd(true)} className="bg-amber-600 hover:bg-amber-500">
               <Plus className="w-4 h-4 mr-2" />
               Add Your First Recurring Expense
@@ -342,7 +345,7 @@ export default function RecurringExpenses() {
           </div>
         ) : (
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Your Recurring Expenses</h2>
+            <h2 className="text-2xl font-bold">Your Recurring Expenses</h2>
             {recurring.map(exp => {
               let monthlyAmount = exp.amount;
               if (exp.frequency === 'daily') monthlyAmount = exp.amount * 30;
@@ -353,19 +356,19 @@ export default function RecurringExpenses() {
                 <div
                   key={exp.id}
                   data-testid={`recurring-${exp.id}`}
-                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
+                  className="duo-card p-6 hover:border-amber-500/30 transition-all"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold truncate" title={exp.name} style={{ fontFamily: 'Outfit, sans-serif' }}>
+                        <h3 className="text-xl font-bold truncate" title={exp.name}>
                           {exp.name}
                         </h3>
                         <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-medium">
                           {exp.category}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-400">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <RefreshCw className="w-4 h-4" />
                           {FREQUENCIES.find(f => f.value === exp.frequency)?.label}
@@ -381,9 +384,9 @@ export default function RecurringExpenses() {
                         <p className="text-2xl font-bold text-amber-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
                           {formatCurrency(exp.amount)}
                         </p>
-                        <p className="text-xs text-slate-500">per {exp.frequency.replace('ly', '')}</p>
+                        <p className="text-xs text-muted-foreground">per {exp.frequency.replace('ly', '')}</p>
                         {exp.frequency !== 'monthly' && (
-                          <p className="text-xs text-slate-400 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             {formatCurrency(monthlyAmount)}/month
                           </p>
                         )}
@@ -403,7 +406,7 @@ export default function RecurringExpenses() {
                           });
                           setShowAdd(true);
                         }}
-                        className="border-slate-600 text-slate-200 hover:bg-slate-700/10"
+                        className="border-border text-foreground hover:bg-muted/10"
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>

@@ -137,13 +137,13 @@ const severityStyles = {
   success: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
   warning: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
   danger: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
-  neutral: 'bg-slate-500/10 border-slate-500/30 text-slate-400',
+  neutral: 'bg-slate-500/10 border-slate-500/30 text-muted-foreground',
 };
 
 const trendBadgeStyles = {
   up: 'bg-emerald-500/20 text-emerald-400',
   down: 'bg-rose-500/20 text-rose-400',
-  flat: 'bg-slate-500/20 text-slate-400',
+  flat: 'bg-slate-500/20 text-muted-foreground',
 };
 
 export const SmartInsights = ({ data = [], type = 'finance', className = '' }) => {

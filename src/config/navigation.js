@@ -1,142 +1,16 @@
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  Wallet, 
-  Heart, 
-  Smile, 
-  Target, 
-  User, 
-  CheckCircle, 
-  BookOpen, 
-  Users, 
-  Clock, 
-  Settings as SettingsIcon, 
-  Trophy, 
-  Repeat, 
-  Droplet, 
-  Scale 
-} from 'lucide-react';
+// Main sections, shared by the desktop sidebar and the mobile tab bar
+export const MAIN_NAV = [
+  { path: '/dashboard', label: 'Today', emoji: '🏠' },
+  { path: '/track', label: 'Track', emoji: '🧭' },
+  { path: '/quests', label: 'Quests', emoji: '📜' },
+  { path: '/league', label: 'League', emoji: '🏆' },
+  { path: '/profile', label: 'Profile', emoji: '🐣' },
+];
 
-// Single source of truth for navigation
-export const NAVIGATION_CONFIG = {
-  // Desktop: Grouped sections
-  desktop: [
-    {
-      section: 'Main',
-      items: [
-        { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' }
-      ]
-    },
-    {
-      section: 'Tracking',
-      items: [
-        { path: '/attendance', icon: Calendar, label: 'Attendance' },
-        { path: '/finance', icon: Wallet, label: 'Finance' },
-        { path: '/recurring', icon: Repeat, label: 'Recurring' },
-        { path: '/health', icon: Heart, label: 'Health' },
-        { path: '/water', icon: Droplet, label: 'Water' },
-        { path: '/weight', icon: Scale, label: 'Weight' }
-      ]
-    },
-    {
-      section: 'Goals & Habits',
-      items: [
-        { path: '/goals', icon: Target, label: 'Goals' },
-        { path: '/habits', icon: CheckCircle, label: 'Habits' },
-        { path: '/challenges', icon: Trophy, label: 'Challenges' }
-      ]
-    },
-    {
-      section: 'Analytics',
-      items: [
-        { path: '/mood', icon: Smile, label: 'Mood' },
-        { path: '/study', icon: BookOpen, label: 'Study' },
-        { path: '/analytics', icon: Clock, label: 'Analytics' }
-      ]
-    },
-    {
-      section: 'Social & Settings',
-      items: [
-        { path: '/social', icon: Users, label: 'Social' },
-        { path: '/settings', icon: SettingsIcon, label: 'Settings' },
-        { path: '/profile', icon: User, label: 'Profile' }
-      ]
-    }
-  ],
-  
-  // Mobile: Tab-based navigation
-  mobile: {
-    tabs: [
-      {
-        id: 'home',
-        label: 'Home',
-        icon: LayoutDashboard,
-        path: '/dashboard'
-      },
-      {
-        id: 'track',
-        label: 'Track',
-        icon: Calendar,
-        routes: [
-          { path: '/attendance', icon: Calendar, label: 'Attendance' },
-          { path: '/finance', icon: Wallet, label: 'Finance' },
-          { path: '/health', icon: Heart, label: 'Health' }
-        ]
-      },
-      {
-        id: 'stats',
-        label: 'Stats',
-        icon: Target,
-        routes: [
-          { path: '/mood', icon: Smile, label: 'Mood' },
-          { path: '/goals', icon: Target, label: 'Goals' },
-          { path: '/analytics', icon: Clock, label: 'Analytics' }
-        ]
-      },
-      {
-        id: 'more',
-        label: 'More',
-        icon: SettingsIcon,
-        routes: [
-          { path: '/recurring', icon: Repeat, label: 'Recurring' },
-          { path: '/habits', icon: CheckCircle, label: 'Habits' },
-          { path: '/study', icon: BookOpen, label: 'Study' },
-          { path: '/challenges', icon: Trophy, label: 'Challenges' },
-          { path: '/water', icon: Droplet, label: 'Water' },
-          { path: '/weight', icon: Scale, label: 'Weight' },
-          { path: '/social', icon: Users, label: 'Social' },
-          { path: '/settings', icon: SettingsIcon, label: 'Settings' },
-          { path: '/profile', icon: User, label: 'Profile' }
-        ]
-      }
-    ]
-  }
+// Which main section a route belongs to (tracker pages live under "Track")
+export const sectionFor = (pathname) => {
+  const direct = MAIN_NAV.find(n => n.path === pathname);
+  if (direct) return direct.path;
+  if (pathname === '/settings') return '/profile';
+  return '/track';
 };
-
-// Flattened list for tablet and other uses
-export const getAllNavItems = () => {
-  return NAVIGATION_CONFIG.desktop.flatMap(section => section.items);
-};
-
-// Get active tab for mobile
-export const getActiveTab = (pathname) => {
-  const tabs = NAVIGATION_CONFIG.mobile.tabs;
-  
-  // Check if pathname matches a tab's main path
-  for (const tab of tabs) {
-    if (tab.path === pathname) {
-      return tab.id;
-    }
-    // Check if pathname matches any route in the tab
-    if (tab.routes) {
-      for (const route of tab.routes) {
-        if (route.path === pathname) {
-          return tab.id;
-        }
-      }
-    }
-  }
-  
-  return 'home'; // default
-};
-

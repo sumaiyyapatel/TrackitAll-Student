@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { PageHeader } from '@/components/game/PageHeader';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { Heart, Plus, Activity, Moon, Utensils, Droplet, Trash2, Edit2, X, Smile, BarChart3 } from 'lucide-react';
 import { db, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } from '@/lib/localDb';
 import { userRecent } from '@/utils/canonicalQueries';
@@ -13,7 +15,6 @@ import { HealthForm } from '@/components/forms/HealthForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { formatDate, getMoodEmoji } from '@/utils/helpers';
-import { POINTS } from '@/utils/gamification';
 import { CATEGORY_THEMES } from '@/utils/categoryColors';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { SmartInsights } from '@/components/SmartInsights';
@@ -21,7 +22,8 @@ import { DataExport, EXPORT_COLUMNS } from '@/components/DataExport';
 import { HealthSkeleton } from '@/components/SkeletonScreens';
 
 export default function Health() {
-  const { user, addPoints } = useStore();
+  const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [healthData, setHealthData] = useState([]);
   const [moodData, setMoodData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,8 +84,8 @@ export default function Health() {
       }
 
       await addDoc(collection(db, 'health'), entry);
-      addPoints(POINTS.LOG_HEALTH);
-      toast.success(`+${POINTS.LOG_HEALTH} XP! Health data logged`);
+      recordActivity('workout');
+      toast.success('Health data logged');
       setShowAdd(false);
       setNewEntry({ type: 'workout', duration: '', intensity: 'medium', description: '', calories: '', hours: '', quality: '7' });
       loadAllData();
@@ -116,6 +118,8 @@ export default function Health() {
   return (
     <Layout>
       <div className="max-w-container mx-auto space-y-8">
+        <PageHeader />
+
         {/* Smart Insights */}
         <SmartInsights data={healthData} type="health" />
 
@@ -123,7 +127,7 @@ export default function Health() {
         <div className={`bg-gradient-to-br ${CATEGORY_THEMES.health.gradient} rounded-2xl p-8 text-white`}>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-              <h1 className="text-white mb-2">Feeling {latestMood > 7 ? 'Great' : latestMood > 4 ? 'Okay' : 'Tired'}?</h1>
+              <h2 className="text-white mb-2">Feeling {latestMood > 7 ? 'Great' : latestMood > 4 ? 'Okay' : 'Tired'}?</h2>
               <p className="text-emerald-50/80">You've completed {stats.workouts} workouts this week. Keep pushing! 🚀</p>
             </div>
             <div className="flex items-center gap-4 bg-white/20 p-4 rounded-2xl backdrop-blur-md">

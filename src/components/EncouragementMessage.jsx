@@ -38,7 +38,7 @@ export const EncouragementMessage = ({
 
   const colorClasses = {
     amber: 'bg-warning/10 border-warning/30 text-warning',
-    violet: 'bg-[#8b5cf6]/10 border-[#8b5cf6]/30 text-[#8b5cf6]',
+    violet: 'bg-primary/10 border-[#8b5cf6]/30 text-[#8b5cf6]',
     emerald: 'bg-success/10 border-success/30 text-success',
     cyan: 'bg-info/10 border-info/30 text-info',
     rose: 'bg-danger/10 border-danger/30 text-danger'

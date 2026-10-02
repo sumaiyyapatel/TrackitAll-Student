@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
+import { Mascot } from '@/components/game/Mascot';
+import { PageHeader } from '@/components/game/PageHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { Scale, Plus, TrendingUp, TrendingDown, Target, Trash2, Edit2, X } from 'lucide-react';
 import { db, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from '@/lib/localDb';
 import { userRecent } from '@/utils/canonicalQueries';
@@ -15,6 +18,7 @@ import { DataCard } from '@/components/cards/DataCard';
 
 export default function WeightTracker() {
   const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [weightLogs, setWeightLogs] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -59,6 +63,7 @@ export default function WeightTracker() {
           date: new Date().toISOString(),
           userId: user.uid
         });
+        recordActivity('weight');
         toast.success('Weight logged!');
       }
       setShowAdd(false);
@@ -127,11 +132,8 @@ export default function WeightTracker() {
     <Layout>
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Weight Tracker</h1>
-            <p className="text-slate-400">Track your weight journey and progress</p>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <PageHeader subtitle="Track your weight journey and progress" />
           <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) handleCancel(); }}>
             <DialogTrigger asChild>
               <Button data-testid="add-weight-button" className="bg-violet-600 hover:bg-violet-500">
@@ -139,13 +141,13 @@ export default function WeightTracker() {
                 Log Weight
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="bg-card border-border w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">{editingId ? 'Edit Weight' : 'Log Weight'}</DialogTitle>
+                <DialogTitle className="text-foreground">{editingId ? 'Edit Weight' : 'Log Weight'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddWeight} className="space-y-4">
                 <div>
-                  <Label className="text-slate-300">Current Weight (kg)</Label>
+                  <Label className="text-foreground">Current Weight (kg)</Label>
                   <Input
                     data-testid="weight-input"
                     type="number"
@@ -154,25 +156,25 @@ export default function WeightTracker() {
                     onChange={(e) => setNewWeight({ ...newWeight, weight: e.target.value })}
                     required
                     placeholder="70.5"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <Label className="text-slate-300">Goal Weight (kg) - Optional</Label>
+                  <Label className="text-foreground">Goal Weight (kg) - Optional</Label>
                   <Input
                     type="number"
                     step="0.1"
                     value={newWeight.goal}
                     onChange={(e) => setNewWeight({ ...newWeight, goal: e.target.value })}
                     placeholder="65.0"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div className="flex gap-3">
                   <Button type="submit" className="flex-1 bg-violet-600 hover:bg-violet-500">
                     {editingId ? 'Update' : 'Log Weight'}
                   </Button>
-                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
+                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-border">
                     <X className="w-4 h-4 mr-2" />
                     Cancel
                   </Button>
@@ -203,8 +205,8 @@ export default function WeightTracker() {
 
         {/* Chart */}
         {weightLogs.length > 0 ? (
-          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-            <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Weight Trend</h2>
+          <div className="duo-card p-6">
+            <h2 className="text-2xl font-bold mb-6">Weight Trend</h2>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
                 <XAxis dataKey="date" stroke="#94a3b8" />
@@ -221,10 +223,10 @@ export default function WeightTracker() {
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-12 text-center">
-              <Scale className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-            <h3 className="text-xl font-semibold mb-2 text-slate-400">No weight logs yet</h3>
-            <p className="text-slate-500 mb-6">Start tracking your weight journey</p>
+          <div className="duo-card p-12 text-center">
+              <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
+            <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No weight logs yet</h3>
+            <p className="text-muted-foreground mb-6">Start tracking your weight journey</p>
             <Button onClick={() => setShowAdd(true)} className="bg-violet-600 hover:bg-violet-500">
               <Plus className="w-4 h-4 mr-2" />
               Log Your First Weight
@@ -234,35 +236,35 @@ export default function WeightTracker() {
 
         {/* Recent Logs */}
         {weightLogs.length > 0 && (
-          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-            <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Logs</h2>
+          <div className="duo-card p-6">
+            <h2 className="text-2xl font-bold mb-4">Recent Logs</h2>
             <div className="space-y-3">
               {weightLogs.slice(-10).reverse().map(log => (
-                <div key={log.id} className="flex items-center justify-between p-4 bg-bg-card rounded-xl group">
+                <div key={log.id} className="flex items-center justify-between p-4 bg-card rounded-xl group">
                   <div className="flex items-center gap-4">
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => handleEditLog(log)}
-                        className="p-2 text-slate-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors"
+                        className="p-2 text-muted-foreground hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteLog(log.id)}
-                        className="p-2 text-slate-500 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                        className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                     <div>
                       <p className="font-semibold">{log.weight} kg</p>
-                      <p className="text-xs text-slate-500">{formatDate(log.date)}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(log.date)}</p>
                     </div>
                   </div>
                   {log.goal && (
                     <div className="text-right">
-                      <p className="text-sm text-slate-400">Goal: {log.goal} kg</p>
-                      <p className="text-xs text-slate-500">{Math.abs(log.weight - log.goal).toFixed(1)} kg to go</p>
+                      <p className="text-sm text-muted-foreground">Goal: {log.goal} kg</p>
+                      <p className="text-xs text-muted-foreground">{Math.abs(log.weight - log.goal).toFixed(1)} kg to go</p>
                     </div>
                   )}
                 </div>

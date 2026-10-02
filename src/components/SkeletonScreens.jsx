@@ -10,7 +10,7 @@ const SkeletonPulse = ({ className = '' }) => (
 );
 
 export const SkeletonCard = ({ className = '' }) => (
-  <div className={`bg-card/50 border border-border rounded-2xl p-6 space-y-3 ${className}`} aria-hidden="true">
+  <div className={`duo-card p-6 space-y-3 ${className}`} aria-hidden="true">
     <div className="flex items-center justify-between">
       <SkeletonPulse className="h-4 w-24" />
       <SkeletonPulse className="h-8 w-8 rounded-lg" />
@@ -34,7 +34,7 @@ export const SkeletonHero = ({ className = '' }) => (
 );
 
 export const SkeletonChart = ({ className = '' }) => (
-  <div className={`bg-card/50 border border-border rounded-2xl p-6 ${className}`} aria-hidden="true">
+  <div className={`duo-card p-6 ${className}`} aria-hidden="true">
     <div className="flex items-center justify-between mb-6">
       <SkeletonPulse className="h-5 w-36" />
       <SkeletonPulse className="h-8 w-48 rounded-lg" />
@@ -48,7 +48,7 @@ export const SkeletonChart = ({ className = '' }) => (
 );
 
 export const SkeletonList = ({ count = 5, className = '' }) => (
-  <div className={`bg-card/50 border border-border rounded-2xl p-6 space-y-4 ${className}`} aria-hidden="true">
+  <div className={`duo-card p-6 space-y-4 ${className}`} aria-hidden="true">
     <div className="flex items-center justify-between mb-2">
       <SkeletonPulse className="h-5 w-36" />
       <SkeletonPulse className="h-6 w-20 rounded-lg" />
@@ -139,7 +139,7 @@ export const GoalsSkeleton = () => (
     <SkeletonStats count={3} />
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {[1, 2, 3, 4].map(i => (
-        <div key={i} className="bg-card/50 border border-border rounded-2xl p-6 space-y-4">
+        <div key={i} className="duo-card p-6 space-y-4">
           <SkeletonPulse className="h-5 w-20 rounded-full" />
           <SkeletonPulse className="h-6 w-3/4" />
           <SkeletonPulse className="h-3 w-full rounded-full" />

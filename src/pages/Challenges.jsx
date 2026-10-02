@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { Mascot } from '@/components/game/Mascot';
+import { PageHeader } from '@/components/game/PageHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { Trophy, Plus, Users, Calendar, Flag, Award, Trash2, Edit2, X } from 'lucide-react';
 import { db, collection, addDoc, query, where, getDocs, updateDoc, doc, orderBy, deleteDoc } from '@/lib/localDb';
 import { Button } from '@/components/ui/button';
@@ -12,9 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { calculateDaysRemaining, formatDate } from '@/utils/helpers';
 import { normalizeDate } from '@/utils/dateNormalizer';
-import { POINTS } from '@/utils/gamification';
 import { DataCard } from '@/components/cards/DataCard';
-import { Celebration } from '@/components/ui/Celebration';
 
 
 const CHALLENGE_TYPES = [
@@ -26,12 +27,11 @@ const CHALLENGE_TYPES = [
 ];
 
 export default function Challenges() {
-  const { user, addPoints } = useStore();
+  const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [challenges, setChallenges] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationMessage, setCelebrationMessage] = useState('');
   const [newChallenge, setNewChallenge] = useState({
     title: '',
     type: 'fitness',
@@ -111,6 +111,7 @@ export default function Challenges() {
           status: 'active',
           winner: null
         });
+        recordActivity('challenge_create');
         toast.success('Challenge created!');
       }
 
@@ -187,13 +188,12 @@ export default function Challenges() {
       });
 
       if (isNowCompleted && !wasCompleted) {
-        addPoints(POINTS.COMPLETE_GOAL);
-        setCelebrationMessage(`Challenge "${challenge.title}" completed! 🏆`);
-        setShowCelebration(true);
-        toast.success(`+${POINTS.COMPLETE_GOAL} XP! Challenge completed! 🏆`);
+        recordActivity('challenge_complete', { celebrate: { emoji: '🏆', title: 'Challenge complete!', body: `You conquered "${challenge.title}"!` } });
       } else if (newProgress >= 80 && newProgress < 100) {
+        if (newProgress > oldProgress) recordActivity('challenge_progress');
         toast.success(getProgressHint(newProgress, 100, 'progress'));
       } else {
+        if (newProgress > oldProgress) recordActivity('challenge_progress');
         toast.success('Progress updated!');
       }
 
@@ -225,18 +225,10 @@ export default function Challenges() {
 
   return (
     <Layout>
-      <Celebration
-        show={showCelebration}
-        message={celebrationMessage}
-        onComplete={() => setShowCelebration(false)}
-      />
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Challenges 🏆</h1>
-            <p className="text-slate-400">Compete with friends and achieve your goals</p>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <PageHeader subtitle="Compete with friends and achieve your goals" />
           <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) handleCancel(); }}>
             <DialogTrigger asChild>
               <Button data-testid="create-challenge-button" className="bg-amber-600 hover:bg-amber-500">
@@ -244,18 +236,18 @@ export default function Challenges() {
                 Create Challenge
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="bg-card border-border w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">{editingId ? 'Edit Challenge' : 'Create New Challenge'}</DialogTitle>
+                <DialogTitle className="text-foreground">{editingId ? 'Edit Challenge' : 'Create New Challenge'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreateChallenge} className="space-y-4">
                 <div>
-                  <Label className="text-slate-300">Challenge Type</Label>
+                  <Label className="text-foreground">Challenge Type</Label>
                   <Select value={newChallenge.type} onValueChange={(val) => setNewChallenge({ ...newChallenge, type: val })}>
-                    <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                    <SelectTrigger className="bg-background border-border text-foreground">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-white/10">
+                    <SelectContent className="bg-card border-border">
                       {CHALLENGE_TYPES.map(type => (
                         <SelectItem key={type.value} value={type.value}>
                           {type.label}
@@ -263,54 +255,54 @@ export default function Challenges() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {CHALLENGE_TYPES.find(t => t.value === newChallenge.type)?.description}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-slate-300">Custom Title (Optional)</Label>
+                  <Label className="text-foreground">Custom Title (Optional)</Label>
                   <Input
                     value={newChallenge.title}
                     onChange={(e) => setNewChallenge({ ...newChallenge, title: e.target.value })}
                     placeholder="My Fitness Challenge"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <Label className="text-slate-300">Goal Target</Label>
+                  <Label className="text-foreground">Goal Target</Label>
                   <Input
                     value={newChallenge.goal}
                     onChange={(e) => setNewChallenge({ ...newChallenge, goal: e.target.value })}
                     required
                     placeholder="30 days of exercise"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <Label className="text-slate-300">Duration (days)</Label>
+                  <Label className="text-foreground">Duration (days)</Label>
                   <Input
                     type="number"
                     value={newChallenge.duration}
                     onChange={(e) => setNewChallenge({ ...newChallenge, duration: e.target.value })}
                     required
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <Label className="text-slate-300">Start Date</Label>
+                  <Label className="text-foreground">Start Date</Label>
                   <Input
                     type="date"
                     value={newChallenge.startDate}
                     onChange={(e) => setNewChallenge({ ...newChallenge, startDate: e.target.value })}
                     required
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div className="flex gap-3">
                   <Button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-500">
                     {editingId ? 'Update Challenge' : 'Create Challenge'}
                   </Button>
-                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
+                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-border">
                     <X className="w-4 h-4 mr-2" />
                     Cancel
                   </Button>
@@ -341,12 +333,12 @@ export default function Challenges() {
 
         {/* Active Challenges */}
         <div>
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Active Challenges</h2>
+          <h2 className="text-2xl font-bold mb-4">Active Challenges</h2>
           {activeChallenges.length === 0 ? (
-            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-12 text-center">
-              <Trophy className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2 text-slate-400">No active challenges</h3>
-              <p className="text-slate-500 mb-6">Create a challenge to compete with friends</p>
+            <div className="duo-card p-12 text-center">
+              <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
+              <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No active challenges</h3>
+              <p className="text-muted-foreground mb-6">Create a challenge to compete with friends</p>
               <Button onClick={() => setShowCreate(true)} className="bg-amber-600 hover:bg-amber-500">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Your First Challenge
@@ -363,12 +355,12 @@ export default function Challenges() {
                   <div
                     key={challenge.id}
                     data-testid={`challenge-${challenge.id}`}
-                    className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
+                    className="duo-card p-6 hover:border-amber-500/30 transition-all"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                          <h3 className="text-xl font-bold">
                             {challenge.title}
                           </h3>
                           {challenge.createdBy === user.uid && (
@@ -392,7 +384,7 @@ export default function Challenges() {
                             </div>
                           )}
                         </div>
-                        <p className="text-sm text-slate-400">{challenge.description}</p>
+                        <p className="text-sm text-muted-foreground">{challenge.description}</p>
                         <div className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-medium inline-block mt-2">
                           {challenge.type}
                         </div>
@@ -401,18 +393,18 @@ export default function Challenges() {
 
                     <div className="space-y-3 mb-4">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-400">Goal:</span>
+                        <span className="text-muted-foreground">Goal:</span>
                         <span className="font-semibold">{challenge.goal}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-400">Time remaining:</span>
+                        <span className="text-muted-foreground">Time remaining:</span>
                         <span className={`font-semibold ${daysRemaining <= 7 ? 'text-rose-400' : 'text-emerald-400'
                           }`}>
                           {daysRemaining} days
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-400">Participants:</span>
+                        <span className="text-muted-foreground">Participants:</span>
                         <span className="font-semibold">{participantCount}</span>
                       </div>
                     </div>
@@ -420,7 +412,7 @@ export default function Challenges() {
                     <div className="mb-4">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-400">Your Progress</span>
+                          <span className="text-muted-foreground">Your Progress</span>
                           <span className="font-semibold">{myProgress}%</span>
                         </div>
                         <Progress value={myProgress} />
@@ -447,7 +439,7 @@ export default function Challenges() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleUpdateProgress(challenge.id, 100)}
-                          className="border-white/10"
+                          className="border-border"
                         >
                           Complete
                         </Button>
@@ -463,25 +455,25 @@ export default function Challenges() {
         {/* Completed Challenges */}
         {completedChallenges.length > 0 && (
           <div>
-            <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Completed Challenges 🎉</h2>
+            <h2 className="text-2xl font-bold mb-4">Completed Challenges 🎉</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               {completedChallenges.map(challenge => (
                 <div
                   key={challenge.id}
-                  className="bg-bg-card backdrop-blur-md border border-emerald-500/20 rounded-2xl p-6"
+                  className="duo-card border-emerald-500/40 p-6"
                 >
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
                       <Trophy className="w-5 h-5 text-emerald-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                      <h4 className="font-semibold">
                         {challenge.title}
                       </h4>
-                      <p className="text-xs text-slate-500">{challenge.type}</p>
+                      <p className="text-xs text-muted-foreground">{challenge.type}</p>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-400">Completed {formatDate(challenge.endDate)}</p>
+                  <p className="text-xs text-muted-foreground">Completed {formatDate(challenge.endDate)}</p>
                 </div>
               ))}
             </div>

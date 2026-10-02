@@ -26,19 +26,19 @@ class ErrorBoundary extends React.Component {
       return (
         <Layout>
           <div className="max-w-2xl mx-auto">
-            <div className="bg-bg-card backdrop-blur-md border border-danger/20 rounded-2xl p-8 text-center">
+            <div className="bg-card border-2 border-danger/20 rounded-2xl p-8 text-center">
               <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-danger mb-4" />
-              <h1 className="text-3xl font-bold mb-4 text-slate-200" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              <h1 className="text-3xl font-bold mb-4 text-foreground">
                 Oops! Something went wrong
               </h1>
-              <p className="text-slate-400 mb-4">
+              <p className="text-muted-foreground mb-4">
                 {this.state.error?.message || 'An unexpected error occurred'}
               </p>
-              <details className="mb-6 text-left p-4 bg-slate-950 rounded-lg">
-                <summary className="cursor-pointer text-slate-300 font-semibold">
+              <details className="mb-6 text-left p-4 bg-background rounded-lg">
+                <summary className="cursor-pointer text-foreground font-semibold">
                   Error details (click to expand)
                 </summary>
-                <pre className="mt-2 text-xs text-slate-500 overflow-auto max-h-40">
+                <pre className="mt-2 text-xs text-muted-foreground overflow-auto max-h-40">
                   {this.state.error?.stack}
                 </pre>
               </details>

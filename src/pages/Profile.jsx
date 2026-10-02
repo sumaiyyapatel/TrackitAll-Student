@@ -1,237 +1,182 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { LogOut, Pencil, Settings } from 'lucide-react';
+import { toast } from 'sonner';
 import { Layout } from '@/components/Layout';
-import useStore from '@/store/useStore';
-import { User, Trophy, Award, LogOut, Mail } from 'lucide-react';
-import { db, doc, updateDoc } from '@/lib/localDb';
+import { Mascot } from '@/components/game/Mascot';
+import { AchievementBadge, useAchievementRows } from '@/components/game/widgets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { toast } from 'sonner';
-import { getLevelProgress, getNextLevelPoints } from '@/utils/gamification';
+import useStore from '@/store/useStore';
+import useGameStore, { leagueInfo } from '@/store/useGameStore';
+import { db, doc, setDoc } from '@/lib/localDb';
+import { levelProgress } from '@/lib/game/rules';
+import { dayKey, addDays, weekStartKey } from '@/lib/game/dates';
+import { cn } from '@/lib/utils';
+
+const Stat = ({ emoji, value, label, className }) => (
+  <div className="duo-card flex items-center gap-3 p-4">
+    <span className="text-3xl">{emoji}</span>
+    <div className="min-w-0">
+      <p className={cn('text-xl font-black leading-tight', className)}>{value}</p>
+      <p className="truncate text-xs font-bold text-muted-foreground">{label}</p>
+    </div>
+  </div>
+);
+
+// Last 10 weeks, one column per week, coloured by XP earned
+const ActivityCalendar = () => {
+  const days = useGameStore(s => s.days);
+  const goal = useGameStore(s => s.settings.dailyGoal);
+  const today = dayKey();
+  const start = addDays(weekStartKey(today), -63);
+
+  const weeks = useMemo(() => Array.from({ length: 10 }, (_, w) =>
+    Array.from({ length: 7 }, (_, d) => addDays(start, w * 7 + d))), [start]);
+
+  const shade = (k) => {
+    const d = days[k];
+    if (k > today) return 'bg-transparent';
+    if (d?.frozen && !d.xp) return 'bg-gem/50';
+    if (!d?.xp) return 'bg-muted';
+    if (d.xp >= goal) return 'bg-primary';
+    return d.xp >= goal / 2 ? 'bg-primary/60' : 'bg-primary/30';
+  };
+
+  return (
+    <div>
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {weeks.map((week, wi) => (
+          <div key={wi} className="flex flex-col gap-1.5">
+            {week.map((k, di) => (
+              <motion.div
+                key={k}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: (wi * 7 + di) * 0.006 }}
+                className={cn('h-4 w-4 rounded-[5px] sm:h-5 sm:w-5', shade(k), k === today && 'ring-2 ring-streak')}
+                title={`${k}: ${days[k]?.xp || 0} XP`}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-2 text-[11px] font-bold text-muted-foreground">
+        Less <span className="h-3 w-3 rounded bg-muted" /><span className="h-3 w-3 rounded bg-primary/30" /><span className="h-3 w-3 rounded bg-primary/60" /><span className="h-3 w-3 rounded bg-primary" /> Goal met
+        <span className="ml-3 h-3 w-3 rounded bg-gem/50" /> Frozen
+      </div>
+    </div>
+  );
+};
 
 export default function Profile() {
-  const { user, userStats, clearUser } = useStore();
+  const { user, setUser, clearUser } = useStore();
+  const totalXP = useGameStore(s => s.totalXP);
+  const streak = useGameStore(s => s.streak);
+  const gems = useGameStore(s => s.gems);
+  const tier = useGameStore(s => s.league.tier);
+  const rows = useAchievementRows();
   const [editing, setEditing] = useState(false);
-  const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [name, setName] = useState(user?.displayName || '');
+  const lp = levelProgress(totalXP);
+  const league = leagueInfo(tier);
+  const topBadges = [...rows].sort((a, b) => b.tier - a.tier || b.value / b.def.tiers[0] - a.value / a.def.tiers[0]).slice(0, 4);
 
-  useEffect(() => {
-    if (user) {
-      setDisplayName(user.displayName || '');
-    }
-  }, [user]);
-
-  const handleUpdateProfile = async (e) => {
+  const saveName = async (e) => {
     e.preventDefault();
+    const displayName = name.trim();
+    if (!displayName) return;
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, { displayName });
-      toast.success('Profile updated!');
+      await setDoc(doc(db, 'users', user.uid), { displayName }, { merge: true });
+      setUser({ ...user, displayName });
       setEditing(false);
+      toast.success('Name updated!');
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile');
     }
   };
 
-  const handleLogout = () => {
+  const logout = () => {
     clearUser();
-    toast.success('Logged out successfully');
+    toast.success('Logged out — your data stays on this device');
   };
-
-  const levelProgress = getLevelProgress(userStats.points);
-  const nextLevelPoints = getNextLevelPoints(userStats.points);
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="mx-auto max-w-3xl space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Profile</h1>
-          <p className="text-slate-400">Manage your account and view achievements</p>
-        </div>
-
-        {/* Profile Card */}
-        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-8">
-          <div className="flex items-start gap-6 mb-6">
-            <div className="w-24 h-24 rounded-2xl bg-[#8b5cf6] flex items-center justify-center text-white text-4xl font-bold">
-              {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-            </div>
-            <div className="flex-1">
+        <section className="duo-card relative overflow-hidden p-6">
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-primary/40 via-fuchsia-500/30 to-sky-500/30" />
+          <div className="relative flex flex-col items-center gap-4 sm:flex-row sm:items-end">
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+              className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-card bg-primary text-4xl font-black text-white shadow-[inset_0_-6px_0_rgba(0,0,0,0.2)]"
+            >
+              {user?.displayName?.[0]?.toUpperCase() || '🐣'}
+            </motion.div>
+            <div className="flex-1 text-center sm:text-left">
               {editing ? (
-                <form onSubmit={handleUpdateProfile} className="space-y-4">
-                  <div>
-                    <Label className="text-slate-300">Display Name</Label>
-                    <Input
-                      data-testid="profile-name-input"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="bg-slate-950 border-slate-800 text-slate-200"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="submit" size="sm" className="bg-violet-600 hover:bg-violet-500">
-                      Save
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setEditing(false)}
-                      className="border-white/10 text-slate-300"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
+                <form onSubmit={saveName} className="flex gap-2">
+                  <Input value={name} onChange={e => setName(e.target.value)} autoFocus aria-label="Display name" />
+                  <Button type="submit">Save</Button>
                 </form>
               ) : (
-                <>
-                  <h2 className="text-3xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                    {user?.displayName || 'Student'}
-                  </h2>
-                  <div className="flex items-center gap-2 text-slate-400 mb-4">
-                    <Mail className="w-4 h-4" />
-                    <span>{user?.email}</span>
-                  </div>
-                  <Button
-                    data-testid="edit-profile-button"
-                    onClick={() => setEditing(true)}
-                    size="sm"
-                    variant="outline"
-                    className="border-white/10 text-slate-300"
-                  >
-                    <User className="w-4 h-4 mr-2" />
-                    Edit Profile
-                  </Button>
-                </>
+                <div className="flex items-center justify-center gap-2 sm:justify-start">
+                  <h1 className="text-3xl font-black">{user?.displayName || 'Student'}</h1>
+                  <button onClick={() => setEditing(true)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted" aria-label="Edit name">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
               )}
+              <p className="text-sm text-muted-foreground">Level {lp.level} · {league.name} League</p>
             </div>
+            <Mascot mood="happy" size={72} className="hidden sm:block" />
           </div>
-
-          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-violet-400" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                {userStats.level}
-              </div>
-              <p className="text-sm text-slate-500">Level</p>
+          <div className="relative mt-5">
+            <div className="mb-1.5 flex justify-between text-xs font-extrabold text-muted-foreground">
+              <span>Level {lp.level}</span>
+              <span>{lp.into}/{lp.needed} XP to level {lp.level + 1}</span>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-amber-400" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                {userStats.points}
-              </div>
-              <p className="text-sm text-slate-500">Total XP</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-[#8b5cf6]" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                {userStats.badges.length}
-              </div>
-              <p className="text-sm text-slate-500">Badges</p>
-            </div>
+            <Progress value={lp.pct} />
           </div>
-        </div>
+        </section>
 
-        {/* Level Progress */}
-        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Level Progress</h3>
-              <p className="text-sm text-slate-400">Level {userStats.level}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                {userStats.points} / {nextLevelPoints}
-              </p>
-              <p className="text-xs text-slate-500">XP</p>
-            </div>
+        {/* Stats */}
+        <section>
+          <h2 className="mb-3 text-xl font-black">Statistics</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <Stat emoji="🔥" value={streak.current} label={`Day streak · best ${streak.longest}`} className="text-streak" />
+            <Stat emoji="⚡" value={totalXP} label="Total XP" className="text-xp" />
+            <Stat emoji={league.emoji} value={league.name} label="Current league" />
+            <Stat emoji="💎" value={gems} label="Gems" className="text-gem" />
           </div>
-          <Progress value={levelProgress} className="h-4" />
-          <p className="text-sm text-slate-400 mt-2">
-            {nextLevelPoints - userStats.points} XP until level {userStats.level + 1}
-          </p>
-        </div>
+        </section>
 
-        {/* Badges */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Achievements</h2>
-          {userStats.badges.length === 0 ? (
-            <div className="text-center py-12 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
-              <Trophy className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-              <p className="text-slate-400">No badges earned yet. Keep logging data to unlock achievements!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-              {userStats.badges.map((badge, index) => (
-                <div
-                  key={index}
-                  data-testid={`profile-badge-${badge.id}`}
-                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 text-center hover:border-violet-500/30 transition-all"
-                >
-                  <div className="text-5xl mb-3">{badge.icon || '🏆'}</div>
-                  <h4 className="font-semibold mb-1">{badge.name}</h4>
-                  <p className="text-xs text-slate-500">{badge.description || 'Achievement unlocked!'}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Calendar */}
+        <section className="duo-card p-5">
+          <h2 className="mb-4 text-xl font-black">Activity</h2>
+          <ActivityCalendar />
+        </section>
 
-        {/* Streaks */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Streaks</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">📅</div>
-                <div>
-                  <h4 className="font-semibold">Attendance</h4>
-                  <p className="text-2xl font-bold text-violet-400" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                    {userStats.streaks.attendance || 0} days
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">😊</div>
-                <div>
-                  <h4 className="font-semibold">Mood</h4>
-                  <p className="text-2xl font-bold text-cyan-400" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                    {userStats.streaks.mood || 0} days
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">💪</div>
-                <div>
-                  <h4 className="font-semibold">Health</h4>
-                  <p className="text-2xl font-bold text-[#8b5cf6]" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                    {userStats.streaks.health || 0} days
-                  </p>
-                </div>
-              </div>
-            </div>
+        {/* Achievements */}
+        <section>
+          <div className="mb-3 flex items-end justify-between">
+            <h2 className="text-xl font-black">Achievements</h2>
+            <Link to="/quests" className="text-xs font-extrabold uppercase tracking-wider text-primary">View all</Link>
           </div>
-        </div>
-
-        {/* Logout */}
-        <div className="bg-bg-card backdrop-blur-md border border-danger/20 rounded-2xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-1">Sign Out</h3>
-              <p className="text-sm text-slate-400">Log out of your account</p>
-            </div>
-            <Button
-              data-testid="profile-logout-button"
-              onClick={handleLogout}
-              variant="outline"
-              className="border-danger/50 text-danger hover:bg-danger/10"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {topBadges.map(r => <AchievementBadge key={r.def.id} {...r} size="sm" />)}
           </div>
+        </section>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Button asChild variant="outline"><Link to="/settings"><Settings className="h-4 w-4" /> Settings</Link></Button>
+          <Button variant="outline" onClick={logout} data-testid="logout-button"><LogOut className="h-4 w-4" /> Log out</Button>
         </div>
       </div>
     </Layout>

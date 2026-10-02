@@ -45,7 +45,7 @@ export const SectionHeader = ({
       <div className="flex-1 min-w-0">
         <Tag
           className={cn(styles.title)}
-          style={{ fontFamily: 'Outfit, sans-serif' }}
+         
         >
           {title}
         </Tag>

@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { Mascot } from '@/components/game/Mascot';
+import { PageHeader } from '@/components/game/PageHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { CheckCircle2, Circle, Plus, TrendingUp, Calendar as CalendarIcon, Flame, Trash2, Edit2, X } from 'lucide-react';
 import { db, collection, addDoc, query, where, getDocs, updateDoc, doc, deleteDoc } from '@/lib/localDb';
 import { normalizeDate } from '@/utils/dateNormalizer';
@@ -10,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { POINTS } from '@/utils/gamification';
 import { formatDate } from '@/utils/helpers';
 import { EncouragementMessage } from '@/components/EncouragementMessage';
 import { DataCard } from '@/components/cards/DataCard';
@@ -24,7 +26,8 @@ const FREQUENCIES = [
 ];
 
 export default function Habits() {
-  const { user, addPoints } = useStore();
+  const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -157,7 +160,7 @@ export default function Habits() {
         delete updatedCompletions[dateKey];
       } else {
         updatedCompletions[dateKey] = true;
-        addPoints(POINTS.DAILY_STREAK);
+        recordActivity('habit');
       }
 
       // Calculate streak with local-date awareness
@@ -200,7 +203,7 @@ export default function Habits() {
       });
 
       if (!isCompleted) {
-        toast.success(`+${POINTS.DAILY_STREAK} XP! Habit completed 🔥`);
+        toast.success('Habit completed 🔥');
       }
       loadHabits();
     } catch (error) {
@@ -246,44 +249,41 @@ export default function Habits() {
     <Layout>
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Habit Tracker</h1>
-            <p className="text-slate-400">Build lasting habits with daily tracking</p>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <PageHeader subtitle="Build lasting habits with daily tracking" />
           <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) handleCancel(); }}>
             <DialogTrigger asChild>
               <Button
                 data-testid="add-habit-button"
-                className="bg-violet-600 hover:bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.5)]"
+                className="bg-violet-600 hover:bg-violet-500"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Habit
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="bg-card border-border w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-slate-200">{editingId ? 'Edit Habit' : 'Create New Habit'}</DialogTitle>
+                <DialogTitle className="text-foreground">{editingId ? 'Edit Habit' : 'Create New Habit'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddHabit} className="space-y-4">
                 <div>
-                  <Label className="text-slate-300">Habit Name</Label>
+                  <Label className="text-foreground">Habit Name</Label>
                   <Input
                     data-testid="habit-name-input"
                     value={newHabit.name}
                     onChange={(e) => setNewHabit({ ...newHabit, name: e.target.value })}
                     required
                     placeholder="Drink 8 glasses of water"
-                    className="bg-slate-950 border-slate-800 text-slate-200"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <Label className="text-slate-300">Category</Label>
+                  <Label className="text-foreground">Category</Label>
                   <Select value={newHabit.category} onValueChange={(val) => setNewHabit({ ...newHabit, category: val })}>
-                    <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                    <SelectTrigger className="bg-background border-border text-foreground">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-white/10">
+                    <SelectContent className="bg-card border-border">
                       <SelectItem value="Health">Health</SelectItem>
                       <SelectItem value="Fitness">Fitness</SelectItem>
                       <SelectItem value="Productivity">Productivity</SelectItem>
@@ -294,12 +294,12 @@ export default function Habits() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-slate-300">Frequency</Label>
+                  <Label className="text-foreground">Frequency</Label>
                   <Select value={newHabit.frequency} onValueChange={(val) => setNewHabit({ ...newHabit, frequency: val })}>
-                    <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                    <SelectTrigger className="bg-background border-border text-foreground">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-white/10">
+                    <SelectContent className="bg-card border-border">
                       {FREQUENCIES.map(freq => (
                         <SelectItem key={freq.value} value={freq.value}>
                           {freq.label} - {freq.description}
@@ -312,7 +312,7 @@ export default function Habits() {
                   <Button type="submit" className="flex-1 bg-violet-600 hover:bg-violet-500">
                     {editingId ? 'Update Habit' : 'Create Habit'}
                   </Button>
-                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
+                  <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-border">
                     <X className="w-4 h-4 mr-2" />
                     Cancel
                   </Button>
@@ -324,23 +324,23 @@ export default function Habits() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
+          <div className="duo-card p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-sm text-slate-400 mb-1">Active Habits</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{habits.length}</h3>
+                <p className="text-sm text-muted-foreground mb-1">Active Habits</p>
+                <h3 className="text-4xl font-bold">{habits.length}</h3>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-[#8b5cf6] flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
                 <CheckCircle2 className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
 
-          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
+          <div className="duo-card p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-sm text-slate-400 mb-1">Best Streak</p>
-                <h3 className="text-4xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                <p className="text-sm text-muted-foreground mb-1">Best Streak</p>
+                <h3 className="text-4xl font-bold">
                   {Math.max(...habits.map(h => h.bestStreak || 0), 0)}
                 </h3>
               </div>
@@ -348,7 +348,7 @@ export default function Habits() {
                 <Flame className="w-6 h-6 text-white" />
               </div>
             </div>
-            <p className="text-sm text-slate-500">days in a row</p>
+            <p className="text-sm text-muted-foreground">days in a row</p>
           </div>
 
           <DataCard
@@ -360,12 +360,12 @@ export default function Habits() {
 
         {/* Habits List */}
         <div>
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Your Habits</h2>
+          <h2 className="text-2xl font-bold mb-4">Your Habits</h2>
           {habits.length === 0 ? (
-            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
-              <CheckCircle2 className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2 text-slate-400">No habits yet</h3>
-              <p className="text-slate-500 mb-6">Create your first habit to start building consistency</p>
+            <div className="text-center py-20 duo-card">
+              <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
+              <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No habits yet</h3>
+              <p className="text-muted-foreground mb-6">Create your first habit to start building consistency</p>
               <Button onClick={() => setShowAdd(true)} className="bg-violet-600 hover:bg-violet-500">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Your First Habit
@@ -377,12 +377,12 @@ export default function Habits() {
                 <div
                   key={habit.id}
                   data-testid={`habit-${habit.id}`}
-                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all"
+                  className="duo-card p-6 hover:border-violet-500/30 transition-all"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                        <h3 className="text-xl font-bold">
                           {habit.name}
                         </h3>
                         <span className="px-3 py-1 rounded-full bg-violet-500/20 text-violet-400 text-xs font-medium">
@@ -432,8 +432,8 @@ export default function Habits() {
                   {/* Last 7 Days */}
                   <div>
                     <div className="flex items-center gap-2 mb-3">
-                      <CalendarIcon className="w-4 h-4 text-slate-500" />
-                      <span className="text-sm text-slate-400">Last 7 Days</span>
+                      <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Last 7 Days</span>
                     </div>
                     <div className="grid grid-cols-7 gap-1 sm:gap-2">
                       {last7Days.map((date, index) => {
@@ -449,15 +449,15 @@ export default function Habits() {
                             className={`aspect-square rounded-lg sm:rounded-xl flex flex-col items-center justify-center p-1 sm:p-2 text-xs sm:text-sm border transition-all ${
                               isCompleted
                                 ? 'bg-emerald-500/20 border-emerald-500/50 hover:bg-emerald-500/30'
-                                : 'border-white/10 hover:bg-white/5'
+                                : 'border-border hover:bg-white/5'
                             } ${isToday ? 'ring-2 ring-violet-500' : ''}`}
                           >
                             {isCompleted ? (
                               <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                             ) : (
-                              <Circle className="w-6 h-6 text-slate-600" />
+                              <Circle className="w-6 h-6 text-muted-foreground" />
                             )}
-                            <span className="text-xs text-slate-400 mt-1">
+                            <span className="text-xs text-muted-foreground mt-1">
                               {date.toLocaleDateString('en-US', { weekday: 'short' })}
                             </span>
                           </button>

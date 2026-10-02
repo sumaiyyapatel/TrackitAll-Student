@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { Mascot } from '@/components/game/Mascot';
+import { PageHeader } from '@/components/game/PageHeader';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { ViewToggle } from '@/components/ViewToggle';
 import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { BookOpen, Plus, Clock, TrendingUp, GraduationCap, Target, Timer, Trash2, Edit2, X } from 'lucide-react';
 import { db, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from '@/lib/localDb';
 import { userRecent } from '@/utils/canonicalQueries';
@@ -15,12 +18,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { calculateDaysRemaining, formatDate } from '@/utils/helpers';
 import { normalizeDate } from '@/utils/dateNormalizer';
-import { POINTS } from '@/utils/gamification';
 import { DataCard } from '@/components/cards/DataCard';
 import { CATEGORY_THEMES } from '@/utils/categoryColors';
 
 export default function Study() {
-  const { user, addPoints } = useStore();
+  const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [studySessions, setStudySessions] = useState([]);
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +62,7 @@ export default function Study() {
           if (prev <= 1) {
             setPomodoroActive(false);
             toast.success('Pomodoro session complete! Take a 5-minute break.');
-            addPoints(POINTS.LOG_DATA);
+            recordActivity('pomodoro');
             return 0;
           }
           return prev - 1;
@@ -67,7 +70,7 @@ export default function Study() {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [pomodoroActive, pomodoroTime, addPoints]);
+  }, [pomodoroActive, pomodoroTime, recordActivity]);
 
   const loadData = async () => {
     try {
@@ -108,8 +111,8 @@ export default function Study() {
           date: new Date().toISOString(),
           userId: user.uid
         });
-        addPoints(POINTS.LOG_DATA);
-        toast.success(`+${POINTS.LOG_DATA} XP! Study session logged`);
+        recordActivity('study');
+        toast.success('Study session logged');
       }
       setShowAddSession(false);
       setEditingSessionId(null);
@@ -137,6 +140,7 @@ export default function Study() {
           userId: user.uid,
           createdAt: new Date().toISOString()
         });
+        recordActivity('exam');
         toast.success('Exam added!');
       }
       setShowAddExam(false);
@@ -261,19 +265,15 @@ export default function Study() {
     <Layout>
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <SectionHeader
-          title="Study Tools"
-          subtitle="Track study sessions, manage exams, and stay focused"
-          level="page"
-        />
+        <PageHeader subtitle="Track study sessions, manage exams, and stay focused" />
 
         {/* Stats & Pomodoro */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Pomodoro Timer */}
-          <div className={`bg-bg-card backdrop-blur-md border ${CATEGORY_THEMES.study.border} rounded-2xl p-6`}>
+          <div className={`bg-card border-2 ${CATEGORY_THEMES.study.border} rounded-2xl p-6`}>
             <div className="flex items-center gap-2 mb-4">
               <Timer className="w-5 h-5 text-primary" />
-              <h3 className="font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Pomodoro Timer</h3>
+              <h3 className="font-bold">Pomodoro Timer</h3>
             </div>
             <div className="text-center mb-6">
               <div className="text-6xl font-bold mb-4" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
@@ -293,7 +293,7 @@ export default function Study() {
                     data-testid="pause-pomodoro"
                     onClick={pausePomodoro}
                     variant="outline"
-                    className="border-white/10"
+                    className="border-border"
                   >
                     Pause
                   </Button>
@@ -301,7 +301,7 @@ export default function Study() {
                 <Button
                   onClick={resetPomodoro}
                   variant="outline"
-                  className="border-white/10"
+                  className="border-border"
                 >
                   Reset
                 </Button>
@@ -324,7 +324,7 @@ export default function Study() {
 
         {/* Tabs */}
         <Tabs defaultValue="sessions" className="space-y-6">
-          <TabsList className={`bg-bg-card border ${CATEGORY_THEMES.study.border}`}>
+          <TabsList className={`bg-card border ${CATEGORY_THEMES.study.border}`}>
             <TabsTrigger value="sessions" data-testid="tab-sessions">Study Sessions</TabsTrigger>
             <TabsTrigger value="exams" data-testid="tab-exams">Upcoming Exams</TabsTrigger>
           </TabsList>
@@ -343,7 +343,7 @@ export default function Study() {
                     Log Session
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-popover border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-popover border-border w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="text-foreground">{editingSessionId ? 'Edit Study Session' : 'Log Study Session'}</DialogTitle>
                   </DialogHeader>
@@ -356,7 +356,7 @@ export default function Study() {
                         onChange={(e) => setNewSession({ ...newSession, subject: e.target.value })}
                         required
                         placeholder="Mathematics"
-                        className="bg-bg-card border-input text-foreground"
+                        className="bg-card border-input text-foreground"
                       />
                     </div>
                     <div>
@@ -365,7 +365,7 @@ export default function Study() {
                         value={newSession.topic}
                         onChange={(e) => setNewSession({ ...newSession, topic: e.target.value })}
                         placeholder="Calculus - Derivatives"
-                        className="bg-bg-card border-input text-foreground"
+                        className="bg-card border-input text-foreground"
                       />
                     </div>
                     <div>
@@ -376,14 +376,14 @@ export default function Study() {
                         onChange={(e) => setNewSession({ ...newSession, duration: e.target.value })}
                         required
                         placeholder="60"
-                        className="bg-bg-card border-input text-foreground"
+                        className="bg-card border-input text-foreground"
                       />
                     </div>
                     <div className="flex gap-3">
                       <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">
                         {editingSessionId ? 'Update Session' : 'Log Session'}
                       </Button>
-                      <Button type="button" onClick={handleCancelSession} variant="outline" className="flex-1 border-white/10">
+                      <Button type="button" onClick={handleCancelSession} variant="outline" className="flex-1 border-border">
                         <X className="w-4 h-4 mr-2" />
                         Cancel
                       </Button>
@@ -396,10 +396,10 @@ export default function Study() {
             />
 
             {studySessions.length === 0 ? (
-        <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
-          <BookOpen className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-                <h3 className="text-xl font-semibold mb-2 text-slate-400">No study sessions yet</h3>
-                <p className="text-slate-500 mb-6">Start logging your study time</p>
+        <div className="text-center py-20 duo-card">
+          <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
+                <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No study sessions yet</h3>
+                <p className="text-muted-foreground mb-6">Start logging your study time</p>
                 <Button onClick={() => setShowAddSession(true)} className="bg-violet-600 hover:bg-violet-500">
                   <Plus className="w-4 h-4 mr-2" />
                   Log Your First Session
@@ -411,12 +411,12 @@ export default function Study() {
                   <div
                     key={session.id}
                     data-testid={`session-${session.id}`}
-                    className={`bg-bg-card backdrop-blur-md border ${CATEGORY_THEMES.study.border} rounded-2xl p-6 ${CATEGORY_THEMES.study.hoverBorder} transition-all group`}
+                    className={`bg-card border-2 ${CATEGORY_THEMES.study.border} rounded-2xl p-6 ${CATEGORY_THEMES.study.hoverBorder} transition-all group`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-lg" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                          <h4 className="font-bold text-lg">
                             {session.subject}
                           </h4>
                           <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -438,8 +438,8 @@ export default function Study() {
                             </Button>
                           </div>
                         </div>
-                        {session.topic && <p className="text-sm text-slate-400 mb-2">{session.topic}</p>}
-                        <p className="text-xs text-slate-500">{formatDate(session.date)}</p>
+                        {session.topic && <p className="text-sm text-muted-foreground mb-2">{session.topic}</p>}
+                        <p className="text-xs text-muted-foreground">{formatDate(session.date)}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-violet-400">{session.duration}min</p>
@@ -463,46 +463,46 @@ export default function Study() {
                     Add Exam
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-card border-border w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle className="text-slate-200">{editingExamId ? 'Edit Exam' : 'Add Exam'}</DialogTitle>
+                    <DialogTitle className="text-foreground">{editingExamId ? 'Edit Exam' : 'Add Exam'}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddExam} className="space-y-4">
                     <div>
-                      <Label className="text-slate-300">Subject</Label>
+                      <Label className="text-foreground">Subject</Label>
                       <Input
                         data-testid="exam-subject-input"
                         value={newExam.subject}
                         onChange={(e) => setNewExam({ ...newExam, subject: e.target.value })}
                         required
                         placeholder="Physics"
-                        className="bg-bg-card border-slate-800 text-slate-200"
+                        className="bg-card border-border text-foreground"
                       />
                     </div>
                     <div>
-                      <Label className="text-slate-300">Exam Date</Label>
+                      <Label className="text-foreground">Exam Date</Label>
                       <Input
                         type="date"
                         value={newExam.date}
                         onChange={(e) => setNewExam({ ...newExam, date: e.target.value })}
                         required
-                        className="bg-bg-card border-slate-800 text-slate-200"
+                        className="bg-card border-border text-foreground"
                       />
                     </div>
                     <div>
-                      <Label className="text-slate-300">Syllabus/Topics</Label>
+                      <Label className="text-foreground">Syllabus/Topics</Label>
                       <Input
                         value={newExam.syllabus}
                         onChange={(e) => setNewExam({ ...newExam, syllabus: e.target.value })}
                         placeholder="Chapters 1-5"
-                        className="bg-bg-card border-slate-800 text-slate-200"
+                        className="bg-card border-border text-foreground"
                       />
                     </div>
                     <div className="flex gap-3">
                       <Button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-500">
                         {editingExamId ? 'Update Exam' : 'Add Exam'}
                       </Button>
-                      <Button type="button" onClick={handleCancelExam} variant="outline" className="flex-1 border-white/10">
+                      <Button type="button" onClick={handleCancelExam} variant="outline" className="flex-1 border-border">
                         <X className="w-4 h-4 mr-2" />
                         Cancel
                       </Button>
@@ -514,10 +514,10 @@ export default function Study() {
             />
 
             {upcomingExams.length === 0 ? (
-              <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
-                <GraduationCap className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-                <h3 className="text-xl font-semibold mb-2 text-slate-400">No upcoming exams</h3>
-                <p className="text-slate-500 mb-6">Add your exam schedule</p>
+              <div className="text-center py-20 duo-card">
+                <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
+                <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No upcoming exams</h3>
+                <p className="text-muted-foreground mb-6">Add your exam schedule</p>
                 <Button onClick={() => setShowAddExam(true)} className="bg-amber-600 hover:bg-amber-500">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Your First Exam
@@ -531,7 +531,7 @@ export default function Study() {
                     <div
                       key={exam.id}
                       data-testid={`exam-${exam.id}`}
-                      className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-amber-500/30 transition-all group"
+                      className="duo-card p-6 hover:border-amber-500/30 transition-all group"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-start gap-3 flex-1">
@@ -539,10 +539,10 @@ export default function Study() {
                             <GraduationCap className="w-5 h-5 text-amber-400" />
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-semibold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            <h4 className="font-semibold">
                               {exam.subject}
                             </h4>
-                            {exam.syllabus && <p className="text-xs text-slate-500">{exam.syllabus}</p>}
+                            {exam.syllabus && <p className="text-xs text-muted-foreground">{exam.syllabus}</p>}
                           </div>
                         </div>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -564,8 +564,8 @@ export default function Study() {
                           </Button>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                        <span className="text-xs text-slate-400">{formatDate(exam.date)}</span>
+                      <div className="flex items-center justify-between pt-3 border-t border-border">
+                        <span className="text-xs text-muted-foreground">{formatDate(exam.date)}</span>
                         <span className={`text-sm font-bold ${
                           daysRemaining <= 7 ? 'text-rose-400' :
                           daysRemaining <= 14 ? 'text-amber-400' : 'text-emerald-400'

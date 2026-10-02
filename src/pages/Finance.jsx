@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
+import { PageHeader } from '@/components/game/PageHeader';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { Wallet, Plus, TrendingUp, X, PieChart as PieChartIcon, BarChart3 } from 'lucide-react';
 import { VoiceInput } from '@/components/VoiceInput';
 import { db, collection, addDoc, getDocs, serverTimestamp, deleteDoc, doc, updateDoc } from '@/lib/localDb';
@@ -15,14 +17,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 import { normalizeDate } from '@/utils/dateNormalizer';
-import { POINTS } from '@/utils/gamification';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { expenseSchema, transactionSchema, validateFormData } from '@/utils/validation';
 import { CATEGORY_THEMES } from '@/utils/categoryColors';
 import { SmartInsights } from '@/components/SmartInsights';
 import { TimePeriodFilter, getPeriodStartDate } from '@/components/TimePeriodFilter';
 import { DataExport, EXPORT_COLUMNS } from '@/components/DataExport';
-import { XPProgressBar } from '@/components/GamificationWidgets';
 import { FinanceSkeleton } from '@/components/SkeletonScreens';
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Education', 'Bills', 'Health', 'Other'];
@@ -38,7 +38,8 @@ const CATEGORY_COLORS = {
 };
 
 export default function Finance() {
-  const { user, addPoints } = useStore();
+  const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -120,8 +121,8 @@ export default function Finance() {
           date: serverTimestamp(),
           userId: user.uid
         });
-        addPoints(POINTS.LOG_EXPENSE);
-        toast.success(`+${POINTS.LOG_EXPENSE} XP! Transaction logged`);
+        recordActivity('expense');
+        toast.success('Transaction logged');
       }
       setShowAddExpense(false);
       setEditingId(null);
@@ -209,8 +210,9 @@ export default function Finance() {
   return (
     <Layout>
       <div className="max-w-container mx-auto space-y-8">
+        <PageHeader />
+
         {/* XP Progress */}
-        <XPProgressBar className="animate-slide-up" />
 
         {/* Smart Insights */}
         <SmartInsights data={expenses} type="finance" />
@@ -306,7 +308,7 @@ export default function Finance() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6\">
           {/* Category Breakdown Accordion */}
           <div className="lg:col-span-1">
-            <div className={`bg-card/50 backdrop-blur-md border ${CATEGORY_THEMES.finance.border} rounded-2xl p-6`}>
+            <div className={`bg-card border-2 ${CATEGORY_THEMES.finance.border} rounded-2xl p-6`}>
               <SectionHeader title="Categories" level="subsection" />
               <Accordion type="single" collapsible className="w-full">
                 {chartData.map((cat, idx) => (
@@ -340,7 +342,7 @@ export default function Finance() {
 
           {/* Recent Expenses - Limited to 5 */}
           <div className="lg:col-span-2">
-            <div className={`bg-card/50 backdrop-blur-md border ${CATEGORY_THEMES.finance.border} rounded-2xl p-6`}>
+            <div className={`bg-card border-2 ${CATEGORY_THEMES.finance.border} rounded-2xl p-6`}>
               <div className="flex items-center justify-between mb-6">
                 <SectionHeader title="Recent Transactions" level="subsection" className="mb-0" />
                 <Button variant="ghost" size="sm" className="text-xs text-violet-400">View All</Button>

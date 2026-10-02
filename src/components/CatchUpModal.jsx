@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Calendar, Droplets, Dumbbell, Smile, Loader2, Check } from 'lucide-react';
 import { db, collection, addDoc } from '@/lib/localDb';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { toast } from 'sonner';
-import { POINTS } from '@/utils/gamification';
 import { ResponsiveDialog } from '@/components/ui/responsive-dialog';
 import { Button } from '@/components/ui/button';
 
@@ -15,7 +15,8 @@ const MOOD_OPTIONS = [
 ];
 
 export const CatchUpModal = ({ isOpen, setIsOpen }) => {
-    const { user, addPoints } = useStore();
+    const { user } = useStore();
+    const recordActivity = useGameStore(s => s.recordActivity);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
 
@@ -85,8 +86,8 @@ export const CatchUpModal = ({ isOpen, setIsOpen }) => {
                         course: 'Catch-up'
                     });
                     totalEntries++;
-                    totalXP += POINTS.MARK_ATTENDANCE;
-                    addPoints(POINTS.MARK_ATTENDANCE);
+                    totalXP += 5;
+                    recordActivity('catchup');
                 }
 
                 if (entry.water) {
@@ -96,8 +97,8 @@ export const CatchUpModal = ({ isOpen, setIsOpen }) => {
                         userId: user.uid
                     });
                     totalEntries++;
-                    totalXP += POINTS.DAILY_STREAK;
-                    addPoints(POINTS.DAILY_STREAK);
+                    totalXP += 5;
+                    recordActivity('catchup');
                 }
 
                 if (entry.workout) {
@@ -111,8 +112,8 @@ export const CatchUpModal = ({ isOpen, setIsOpen }) => {
                         userId: user.uid
                     });
                     totalEntries++;
-                    totalXP += POINTS.LOG_HEALTH;
-                    addPoints(POINTS.LOG_HEALTH);
+                    totalXP += 5;
+                    recordActivity('catchup');
                 }
 
                 if (entry.mood !== null) {
@@ -123,8 +124,8 @@ export const CatchUpModal = ({ isOpen, setIsOpen }) => {
                         note: 'Catch-up entry'
                     });
                     totalEntries++;
-                    totalXP += POINTS.LOG_MOOD;
-                    addPoints(POINTS.LOG_MOOD);
+                    totalXP += 5;
+                    recordActivity('catchup');
                 }
             }
 

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { Mascot } from '@/components/game/Mascot';
+import { PageHeader } from '@/components/game/PageHeader';
 import useStore from '@/store/useStore';
 import { Clock, TrendingUp, Calendar, PieChart as PieChartIcon } from 'lucide-react';
 import { db, getDocs } from '@/lib/localDb';
@@ -187,10 +189,7 @@ export default function TimeAnalytics() {
     <Layout>
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>Time Analytics</h1>
-          <p className="text-slate-400">Understand how you spend your time</p>
-        </div>
+        <PageHeader subtitle="Understand how you spend your time" />
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -213,13 +212,13 @@ export default function TimeAnalytics() {
 
         {/* Time Distribution */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-            <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Time Distribution</h2>
+          <div className="duo-card p-6">
+            <h2 className="text-2xl font-bold mb-6">Time Distribution</h2>
             {timeData.length === 0 ? (
               <div className="text-center py-12">
-                <PieChartIcon className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-                <p className="text-slate-400">No time data available</p>
-                <p className="text-sm text-slate-500 mt-2">Start tracking your activities to see insights</p>
+                <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
+                <p className="text-muted-foreground">No time data available</p>
+                <p className="text-sm text-muted-foreground mt-2">Start tracking your activities to see insights</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
@@ -248,8 +247,8 @@ export default function TimeAnalytics() {
             )}
           </div>
 
-          <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-            <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Category Breakdown</h2>
+          <div className="duo-card p-6">
+            <h2 className="text-2xl font-bold mb-6">Category Breakdown</h2>
             <div className="space-y-4">
               {timeData.map((item, index) => {
                 const percentage = totalTime > 0 ? (item.value / totalTime) * 100 : 0;
@@ -262,13 +261,13 @@ export default function TimeAnalytics() {
                       </div>
                       <span className="text-sm font-bold">{formatMinutes(item.value)}</span>
                     </div>
-                    <div className="w-full bg-slate-800 rounded-full h-2">
+                    <div className="w-full bg-muted rounded-full h-2">
                       <div
                         className="h-2 rounded-full"
                         style={{ width: `${percentage}%`, backgroundColor: item.color }}
                       />
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">{percentage.toFixed(1)}% of total time</p>
+                    <p className="text-xs text-muted-foreground mt-1">{percentage.toFixed(1)}% of total time</p>
                   </div>
                 );
               })}
@@ -277,8 +276,8 @@ export default function TimeAnalytics() {
         </div>
 
         {/* Weekly Activity */}
-        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-          <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>Weekly Activity Pattern</h2>
+        <div className="duo-card p-6">
+          <h2 className="text-2xl font-bold mb-6">Weekly Activity Pattern</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={weeklyData}>
               <XAxis dataKey="day" stroke="#94a3b8" />
@@ -296,13 +295,13 @@ export default function TimeAnalytics() {
         </div>
 
         {/* Insights */}
-        <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Insights</h2>
+        <div className="duo-card p-6">
+          <h2 className="text-2xl font-bold mb-4">Insights</h2>
           <div className="space-y-3">
             <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-xl">
               <p className="text-sm">
                 <span className="font-semibold text-violet-400">Peak Productivity:</span>{' '}
-                <span className="text-slate-300">
+                <span className="text-foreground">
                   You're most productive on {mostProductiveDay || 'weekdays'}.
                 </span>
               </p>
@@ -310,7 +309,7 @@ export default function TimeAnalytics() {
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
               <p className="text-sm">
                 <span className="font-semibold text-emerald-400">Time Allocation:</span>{' '}
-                <span className="text-slate-300">
+                <span className="text-foreground">
                   {timeData.length > 0
                     ? `You spend most time on ${topCategoryName}.`
                     : 'Start tracking to see insights.'}
@@ -320,7 +319,7 @@ export default function TimeAnalytics() {
             <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
               <p className="text-sm">
                 <span className="font-semibold text-amber-400">Recommendation:</span>{' '}
-                <span className="text-slate-300">
+                <span className="text-foreground">
                   Maintain a balanced routine with at least 1 hour of exercise daily for better focus.
                 </span>
               </p>

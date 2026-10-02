@@ -1,9 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
+import { Mascot } from '@/components/game/Mascot';
+import { PageHeader } from '@/components/game/PageHeader';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { ViewToggle } from '@/components/ViewToggle';
 import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
+import useGameStore from '@/store/useGameStore';
 import { Smile, Plus, TrendingUp, Calendar, Trash2, Edit2, X, Grid3X3, Mic, MicOff } from 'lucide-react';
 import { db, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from '@/lib/localDb';
 import { userRecent } from '@/utils/canonicalQueries';
@@ -14,7 +17,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { getMoodEmoji, getMoodColor, formatDate } from '@/utils/helpers';
-import { POINTS } from '@/utils/gamification';
 import { Slider } from '@/components/ui/slider';
 import { DataCard } from '@/components/cards/DataCard';
 import { CATEGORY_THEMES } from '@/utils/categoryColors';
@@ -26,7 +28,8 @@ import { SearchFilter } from '@/components/SearchFilter';
 const MOOD_FACTORS = ['stress', 'sleep', 'work', 'social', 'health', 'family', 'exercise'];
 
 export default function Mood() {
-  const { user, addPoints } = useStore();
+  const { user } = useStore();
+  const recordActivity = useGameStore(s => s.recordActivity);
   const [moodEntries, setMoodEntries] = useState([]);
   const [allMoodEntries, setAllMoodEntries] = useState([]); // keep original copy for filtering
   const [loading, setLoading] = useState(true);
@@ -86,8 +89,8 @@ export default function Mood() {
           date: new Date().toISOString(),
           userId: user.uid
         });
-        addPoints(POINTS.LOG_MOOD);
-        toast.success(`+${POINTS.LOG_MOOD} XP! Mood logged ${getMoodEmoji(newMood.mood)}`);
+        recordActivity('mood');
+        toast.success(`Mood logged ${getMoodEmoji(newMood.mood)}`);
       }
       setShowAdd(false);
       setEditingId(null);
@@ -213,13 +216,8 @@ export default function Mood() {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <SectionHeader
-            title="Mood Tracker"
-            subtitle="Track your daily mood and mental wellbeing"
-            level="page"
-            className="mb-0"
-          />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <PageHeader subtitle="Track your daily mood and mental wellbeing" />
           <div className="flex items-center gap-2">
             <Button
               data-testid="add-mood-button"
@@ -235,10 +233,10 @@ export default function Mood() {
         {/* Add/Edit Mood Modal */}
         {showAdd && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
+            <div className="bg-card border-border w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-slate-200">{editingId ? 'Edit Mood Entry' : 'How are you feeling?'}</h2>
+                  <h2 className="text-xl font-bold text-foreground">{editingId ? 'Edit Mood Entry' : 'How are you feeling?'}</h2>
                   <Button onClick={handleCancel} variant="outline" size="sm">
                     <X className="w-4 h-4" />
                   </Button>
@@ -246,7 +244,7 @@ export default function Mood() {
                 <form onSubmit={handleAddMood} className="space-y-6">
                   <div className="text-center">
                     <div className="text-7xl mb-4">{getMoodEmoji(newMood.mood)}</div>
-                    <p className="text-4xl font-bold mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                    <p className="text-4xl font-bold mb-6">
                       {newMood.mood}/10
                     </p>
                     <Slider
@@ -261,7 +259,7 @@ export default function Mood() {
                   </div>
 
                   <div>
-                    <Label className="text-slate-300 mb-3 block">What's affecting your mood?</Label>
+                    <Label className="text-foreground mb-3 block">What's affecting your mood?</Label>
                     <div className="flex flex-wrap gap-2">
                       {MOOD_FACTORS.map(factor => (
                         <button
@@ -272,7 +270,7 @@ export default function Mood() {
                           className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                             newMood.factors.includes(factor)
                               ? 'bg-cyan-600 text-white '
-                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                              : 'bg-muted text-muted-foreground hover:bg-muted'
                           }`}
                         >
                           {factor}
@@ -283,13 +281,13 @@ export default function Mood() {
 
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <Label className="text-slate-300">Journal (Optional)</Label>
+                      <Label className="text-foreground">Journal (Optional)</Label>
                       <Button
                         type="button"
                         size="sm"
                         variant={isListening ? "destructive" : "outline"}
                         onClick={isListening ? stopVoiceJournal : startVoiceJournal}
-                        className={`text-xs gap-1.5 ${isListening ? 'animate-pulse' : 'border-white/10'}`}
+                        className={`text-xs gap-1.5 ${isListening ? 'animate-pulse' : 'border-border'}`}
                         aria-label={isListening ? 'Stop voice input' : 'Start voice input for journal'}
                       >
                         {isListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
@@ -301,7 +299,7 @@ export default function Mood() {
                       value={newMood.journal}
                       onChange={(e) => setNewMood({ ...newMood, journal: e.target.value })}
                       placeholder="How was your day? What made you feel this way?"
-                      className="bg-bg-card border-slate-800 text-slate-200 min-h-[100px]"
+                      className="bg-card border-border text-foreground min-h-[100px]"
                     />
                   </div>
 
@@ -309,7 +307,7 @@ export default function Mood() {
                     <Button type="submit" className="flex-1 bg-cyan-600 hover:bg-cyan-500">
                       {editingId ? 'Update Mood' : 'Log Mood'}
                     </Button>
-                    <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-white/10">
+                    <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-border">
                       <X className="w-4 h-4 mr-2" />
                       Cancel
                     </Button>
@@ -342,17 +340,17 @@ export default function Mood() {
         {/* Mood Calendar/Grid */}
         {moodEntries.length > 0 && (
           <div>
-            <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>Mood Calendar</h2>
-            <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6">
+            <h2 className="text-2xl font-bold mb-4">Mood Calendar</h2>
+            <div className="duo-card p-6">
               <div className="grid grid-cols-7 gap-1 sm:gap-2">
                 {moodEntries.slice(0, 35).map((entry, index) => (
                   <div
                     key={entry.id}
                     data-testid={`mood-day-${entry.id}`}
-                    className={`aspect-square rounded-lg sm:rounded-xl flex flex-col items-center justify-center p-1 sm:p-2 text-xs sm:text-sm border border-white/10 hover:border-cyan-500/50 transition-all cursor-pointer ${getMoodColor(entry.mood)}/20`}
+                    className={`aspect-square rounded-lg sm:rounded-xl flex flex-col items-center justify-center p-1 sm:p-2 text-xs sm:text-sm border border-border hover:border-cyan-500/50 transition-all cursor-pointer ${getMoodColor(entry.mood)}/20`}
                   >
                     <div className="text-2xl">{getMoodEmoji(entry.mood)}</div>
-                    <div className="text-xs text-slate-400 mt-1">{entry.mood}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{entry.mood}</div>
                   </div>
                 ))}
               </div>
@@ -380,10 +378,10 @@ export default function Mood() {
             </div>
           </div>
           {moodEntries.length === 0 ? (
-            <div className="text-center py-20 bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl">
-              <Smile className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2 text-slate-400">No mood entries yet</h3>
-              <p className="text-slate-500 mb-6">Start tracking your emotional wellbeing</p>
+            <div className="text-center py-20 duo-card">
+              <Mascot mood="think" size={96} className="mx-auto mb-4 block" />
+              <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No mood entries yet</h3>
+              <p className="text-muted-foreground mb-6">Start tracking your emotional wellbeing</p>
               <Button onClick={() => setShowAdd(true)} className="bg-cyan-600 hover:bg-cyan-500">
                 <Plus className="w-4 h-4 mr-2" />
                 Log Your First Mood
@@ -395,7 +393,7 @@ export default function Mood() {
                 <div
                   key={entry.id}
                   data-testid={`mood-entry-${entry.id}`}
-                  className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-cyan-500/30 transition-all group"
+                  className="duo-card p-6 hover:border-cyan-500/30 transition-all group"
                 >
                   <div className="flex items-start gap-4">
                     <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-4xl ${getMoodColor(entry.mood)}`}>
@@ -403,11 +401,11 @@ export default function Mood() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                        <h4 className="text-2xl font-bold">
                           {entry.mood}/10
                         </h4>
                         <div className="flex items-center gap-2">
-                          <p className="text-sm text-slate-400">{formatDate(entry.date)}</p>
+                          <p className="text-sm text-muted-foreground">{formatDate(entry.date)}</p>
                           <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               size="sm"
@@ -433,7 +431,7 @@ export default function Mood() {
                           {entry.factors.map(factor => (
                             <span
                               key={factor}
-                              className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs"
+                              className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs"
                             >
                               {factor}
                             </span>
@@ -441,7 +439,7 @@ export default function Mood() {
                         </div>
                       )}
                       {entry.journal && (
-                        <p className="text-slate-300 text-sm leading-relaxed">{entry.journal}</p>
+                        <p className="text-foreground text-sm leading-relaxed">{entry.journal}</p>
                       )}
                     </div>
                   </div>

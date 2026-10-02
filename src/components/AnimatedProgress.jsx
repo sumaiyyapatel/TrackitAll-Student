@@ -45,7 +45,7 @@ export const AnimatedProgress = ({
   const isComplete = percentage >= 100;
 
   const colorClasses = {
-    violet: 'bg-[#8b5cf6]',
+    violet: 'bg-primary',
     emerald: 'bg-success',
     amber: 'bg-warning',
     cyan: 'bg-info',

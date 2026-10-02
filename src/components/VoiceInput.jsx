@@ -73,7 +73,7 @@ export const VoiceInput = ({ onResult, buttonText = "Voice Input" }) => {
       type="button"
       onClick={toggleListening}
       variant={isListening ? "destructive" : "outline"}
-      className={`border-white/10 ${isListening ? 'animate-pulse' : ''}`}
+      className={`border-border ${isListening ? 'animate-pulse' : ''}`}
       data-testid="voice-input-button"
     >
       {isListening ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
