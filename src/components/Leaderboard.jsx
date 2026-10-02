@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import fetchTopLeaderboard from '../utils/leaderboard';
-import { db } from '@/firebase/config';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { db, collection, query, where, getDocs, doc, getDoc } from '@/lib/localDb';
 import useStore from '@/store/useStore';
 
 const Leaderboard = ({ top = 10, friendsOnly: initialFriendsOnly = false }) => {

@@ -1,10 +1,10 @@
-import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit } from '@/lib/localDb';
 
 /**
  * Canonical user-owned collection query
  * - Always filter by userId == uid
  * - Always order by date desc
- * - Single Firestore query shape to avoid composite index explosion
+ * - Single shared query shape across pages
  */
 export const userRecent = (db, collectionName, uid, limitCount = 50) =>
   query(

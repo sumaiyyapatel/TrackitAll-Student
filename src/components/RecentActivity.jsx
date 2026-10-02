@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, DollarSign, Smile, BookOpen, Heart, Droplets, Activity } from 'lucide-react';
-import { getDocs } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db, getDocs } from '@/lib/localDb';
 import { userRecent } from '@/utils/canonicalQueries';
 import useStore from '@/store/useStore';
 import { CATEGORY_THEMES } from '@/utils/categoryColors';

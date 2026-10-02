@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { auth } from '@/firebase/config';
-import { signOut } from 'firebase/auth';
 import useStore from '@/store/useStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
@@ -17,14 +15,9 @@ export const Layout = ({ children }) => {
   const { theme, toggleTheme } = useTheme();
   const [tabletMenuOpen, setTabletMenuOpen] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      clearUser();
-      toast.success('Logged out successfully');
-    } catch (error) {
-      toast.error('Error logging out');
-    }
+  const handleLogout = () => {
+    clearUser();
+    toast.success('Logged out successfully');
   };
 
   const isDark = theme === 'dark' || (theme === 'system' && !window.matchMedia('(prefers-color-scheme: light)').matches);
@@ -38,7 +31,7 @@ export const Layout = ({ children }) => {
     user && (
       <div className={`bg-muted/50 rounded-2xl p-4 border border-border ${className}`}>
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white font-semibold">
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
             {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
           </div>
           <div className="flex-1 min-w-0">
@@ -47,8 +40,8 @@ export const Layout = ({ children }) => {
           </div>
         </div>
         <div className="w-full bg-muted rounded-full h-2">
-          <div 
-            className="h-2 rounded-full bg-[#8b5cf6] transition-all duration-300"
+          <div
+            className="h-2 rounded-full bg-primary transition-all duration-300"
             style={{ width: `${(userStats.points % 100)}%` }}
           />
         </div>
@@ -69,7 +62,7 @@ export const Layout = ({ children }) => {
         data-testid={testId || `nav-${item.label.toLowerCase()}`}
         className={`group flex gap-x-3 rounded-xl p-3 text-sm font-medium transition-all ${
           active
-            ? 'bg-violet-600 text-white shadow-[0_0_20px_rgba(139,92,246,0.5)]'
+            ? 'bg-primary text-white shadow-[0_0_20px_rgba(139,92,246,0.5)]'
             : 'text-muted-foreground hover:text-foreground hover:bg-muted'
         } ${className}`}
       >

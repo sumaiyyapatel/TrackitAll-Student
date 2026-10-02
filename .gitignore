@@ -33,5 +33,5 @@ yarn-error.log*
 
 # OS
 Thumbs.db
-# local env (contains Firebase config)
+# local env
 .env

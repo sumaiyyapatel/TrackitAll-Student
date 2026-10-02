@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Droplets, Dumbbell, CheckCircle, Check, Loader2 } from 'lucide-react';
-import { collection, addDoc, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db, collection, addDoc, getDocs, query, where, doc, updateDoc } from '@/lib/localDb';
 import useStore from '@/store/useStore';
 import { toast } from 'sonner';
 import { POINTS } from '@/utils/gamification';

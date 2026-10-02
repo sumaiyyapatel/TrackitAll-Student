@@ -1,6 +1,6 @@
 /**
  * Standardized date handling for the app
- * All dates stored as ISO strings in Firestore
+ * All dates stored as ISO strings
  */
 
 /**
@@ -16,7 +16,7 @@ export const formatDate = (dateInput) => {
       ? new Date(dateInput) 
       : dateInput instanceof Date 
       ? dateInput 
-      : dateInput.toDate?.(); // Firestore Timestamp
+      : dateInput.toDate?.(); // Timestamp-like object (has toDate)
     
     if (isNaN(date.getTime())) return '';
     

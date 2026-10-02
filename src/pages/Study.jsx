@@ -5,8 +5,7 @@ import { ViewToggle } from '@/components/ViewToggle';
 import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
 import { BookOpen, Plus, Clock, TrendingUp, GraduationCap, Target, Timer, Trash2, Edit2, X } from 'lucide-react';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from '@/lib/localDb';
 import { userRecent } from '@/utils/canonicalQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -252,7 +251,7 @@ export default function Study() {
     return (
       <Layout>
         <div className="flex items-center justify-center h-96">
-          <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       </Layout>
     );
@@ -273,7 +272,7 @@ export default function Study() {
           {/* Pomodoro Timer */}
           <div className={`bg-bg-card backdrop-blur-md border ${CATEGORY_THEMES.study.border} rounded-2xl p-6`}>
             <div className="flex items-center gap-2 mb-4">
-              <Timer className="w-5 h-5 text-violet-400" />
+              <Timer className="w-5 h-5 text-primary" />
               <h3 className="font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Pomodoro Timer</h3>
             </div>
             <div className="text-center mb-6">
@@ -285,7 +284,7 @@ export default function Study() {
                   <Button
                     data-testid="start-pomodoro"
                     onClick={startPomodoro}
-                    className="bg-violet-600 hover:bg-violet-500"
+                    className="bg-primary hover:bg-primary/90"
                   >
                     Start Focus
                   </Button>
@@ -339,49 +338,49 @@ export default function Study() {
                   <ViewToggle view={studyView} onViewChange={setStudyView} />
                   <Dialog open={showAddSession} onOpenChange={(open) => { setShowAddSession(open); if (!open) handleCancelSession(); }}>
                 <DialogTrigger asChild>
-                  <Button data-testid="add-session-button" className="bg-violet-600 hover:bg-violet-500">
+                  <Button data-testid="add-session-button" className="bg-primary hover:bg-primary/90">
                     <Plus className="w-4 h-4 mr-2" />
                     Log Session
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-slate-900 border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-popover border-white/10 w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle className="text-slate-200">{editingSessionId ? 'Edit Study Session' : 'Log Study Session'}</DialogTitle>
+                    <DialogTitle className="text-foreground">{editingSessionId ? 'Edit Study Session' : 'Log Study Session'}</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddSession} className="space-y-4">
                     <div>
-                      <Label className="text-slate-300">Subject</Label>
+                      <Label className="text-foreground">Subject</Label>
                       <Input
                         data-testid="session-subject-input"
                         value={newSession.subject}
                         onChange={(e) => setNewSession({ ...newSession, subject: e.target.value })}
                         required
                         placeholder="Mathematics"
-                        className="bg-bg-card border-slate-800 text-slate-200"
+                        className="bg-bg-card border-input text-foreground"
                       />
                     </div>
                     <div>
-                      <Label className="text-slate-300">Topic</Label>
+                      <Label className="text-foreground">Topic</Label>
                       <Input
                         value={newSession.topic}
                         onChange={(e) => setNewSession({ ...newSession, topic: e.target.value })}
                         placeholder="Calculus - Derivatives"
-                        className="bg-bg-card border-slate-800 text-slate-200"
+                        className="bg-bg-card border-input text-foreground"
                       />
                     </div>
                     <div>
-                      <Label className="text-slate-300">Duration (minutes)</Label>
+                      <Label className="text-foreground">Duration (minutes)</Label>
                       <Input
                         type="number"
                         value={newSession.duration}
                         onChange={(e) => setNewSession({ ...newSession, duration: e.target.value })}
                         required
                         placeholder="60"
-                        className="bg-bg-card border-slate-800 text-slate-200"
+                        className="bg-bg-card border-input text-foreground"
                       />
                     </div>
                     <div className="flex gap-3">
-                      <Button type="submit" className="flex-1 bg-violet-600 hover:bg-violet-500">
+                      <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">
                         {editingSessionId ? 'Update Session' : 'Log Session'}
                       </Button>
                       <Button type="button" onClick={handleCancelSession} variant="outline" className="flex-1 border-white/10">

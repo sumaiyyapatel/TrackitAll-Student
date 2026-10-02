@@ -1,7 +1,7 @@
 export const normalizeDate = (dateValue) => {
   if (!dateValue) return null;
 
-  // Firestore Timestamp
+  // Timestamp-like object (has toDate)
   if (typeof dateValue === 'object' && typeof dateValue.toDate === 'function') {
     return dateValue.toDate();
   }

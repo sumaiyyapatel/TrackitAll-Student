@@ -5,7 +5,7 @@ import {
   orderBy,
   limit,
   getDocs
-} from 'firebase/firestore';
+} from '@/lib/localDb';
 
 export default async function fetchTopLeaderboard(db, top = 10) {
   const q = query(

@@ -5,8 +5,7 @@ import { ViewToggle } from '@/components/ViewToggle';
 import { SectionHeader } from '@/components/SectionHeader';
 import useStore from '@/store/useStore';
 import { Calendar, Plus, Check, X, Edit2, Trash2 } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db, collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from '@/lib/localDb';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
 import { ResponsiveDialog } from '@/components/ui/responsive-dialog';
@@ -196,7 +195,7 @@ export default function Attendance() {
               trigger={
                 <Button
                   data-testid="mark-attendance-button"
-                  className="bg-violet-600 hover:bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.5)]"
+                  className={`${CATEGORY_THEMES.attendance.button} shadow-[0_0_15px_rgba(139,92,246,0.5)]`}
                 >
                   <Check className="w-4 h-4 mr-2" />
                   Mark Attendance
@@ -218,7 +217,7 @@ export default function Attendance() {
               title={editingCourseId ? 'Edit Course' : 'Add New Course'}
               description={editingCourseId ? 'Edit course details' : 'Add a new course to track attendance'}
               trigger={
-                <Button data-testid="add-course-button" variant="outline" className="border-white/10 text-slate-300">
+                <Button data-testid="add-course-button" variant="outline" className="border-white/10 text-foreground">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Course
                 </Button>
@@ -260,10 +259,10 @@ export default function Attendance() {
         {/* Course List */}
         {courses.length === 0 ? (
           <div className="text-center py-20">
-            <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
-            <h3 className="text-slate-400">No courses added yet</h3>
-            <p className="text-slate-500 mb-6">Add your first course to start tracking attendance</p>
-            <Button onClick={() => setShowAddCourse(true)} className="bg-violet-600 hover:bg-violet-500">
+            <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-muted-foreground">No courses added yet</h3>
+            <p className="text-muted-foreground mb-6">Add your first course to start tracking attendance</p>
+            <Button onClick={() => setShowAddCourse(true)} className={CATEGORY_THEMES.attendance.button}>
               <Plus className="w-4 h-4 mr-2" />
               Add Your First Course
             </Button>
@@ -300,10 +299,10 @@ export default function Attendance() {
                       </div>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button size="sm" variant="outline" onClick={() => handleEditCourse(course)} className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10">
+                      <Button size="sm" variant="outline" onClick={() => handleEditCourse(course)} className="border-primary/50 text-primary hover:bg-primary/10" aria-label={`Edit ${course.name}`}>
                         <Edit2 className="w-3 h-3" />
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleDeleteCourse(course.id)} className="border-danger/50 text-danger hover:bg-danger/10">
+                      <Button size="sm" variant="outline" onClick={() => handleDeleteCourse(course.id)} className="border-danger/50 text-danger hover:bg-danger/10" aria-label={`Delete ${course.name}`}>
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
@@ -337,10 +336,10 @@ export default function Attendance() {
                             <p className="text-body-sm text-muted-foreground">{course.code}</p>
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleEditCourse(course)} className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10">
+                            <Button size="sm" variant="outline" onClick={() => handleEditCourse(course)} className="border-primary/50 text-primary hover:bg-primary/10" aria-label={`Edit ${course.name}`}>
                               <Edit2 className="w-3 h-3" />
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleDeleteCourse(course.id)} className="border-danger/50 text-danger hover:bg-danger/10">
+                            <Button size="sm" variant="outline" onClick={() => handleDeleteCourse(course.id)} className="border-danger/50 text-danger hover:bg-danger/10" aria-label={`Delete ${course.name}`}>
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
@@ -382,7 +381,7 @@ export default function Attendance() {
                             <div 
                               key={record.id}
                               className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                                record.attended ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                record.attended ? 'bg-success/20 text-success border border-success/30' : 'bg-danger/20 text-danger border border-danger/30'
                               }`}
                               title={formatDate(record.date)}
                             >

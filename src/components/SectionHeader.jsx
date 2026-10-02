@@ -21,18 +21,18 @@ export const SectionHeader = ({
 }) => {
   const levelStyles = {
     page: {
-      title: 'text-3xl md:text-4xl font-bold tracking-tight',
-      subtitle: 'text-base text-muted-foreground mt-2',
+      title: 'text-h1 tracking-tight',
+      subtitle: 'text-body text-muted-foreground mt-2',
       wrapper: 'mb-8',
     },
     section: {
-      title: 'text-xl md:text-2xl font-semibold tracking-tight',
-      subtitle: 'text-sm text-muted-foreground mt-1',
+      title: 'text-h2 tracking-tight',
+      subtitle: 'text-body-sm text-muted-foreground mt-1',
       wrapper: 'mb-6',
     },
     subsection: {
-      title: 'text-base md:text-lg font-medium',
-      subtitle: 'text-xs text-muted-foreground mt-0.5',
+      title: 'text-h3',
+      subtitle: 'text-caption text-muted-foreground mt-0.5',
       wrapper: 'mb-4',
     },
   };

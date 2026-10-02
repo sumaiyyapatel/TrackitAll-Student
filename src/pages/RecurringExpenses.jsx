@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { RefreshCw, Plus, Calendar, Trash2, Edit2 } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db, collection, addDoc, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, serverTimestamp } from '@/lib/localDb';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -328,13 +327,9 @@ export default function RecurringExpenses() {
             value={formatCurrency(getYearlyTotal())}
             icon={RefreshCw}
           />
-              <div className="w-12 h-12 rounded-xl bg-danger flex items-center justify-center">
-                <RefreshCw className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500">annual commitment</p>
-          </div>
-               {/* Recurring List */}
+        </div>
+
+        {/* Recurring List */}
         {recurring.length === 0 ? (
           <div className="bg-bg-card backdrop-blur-md border border-white/10 rounded-2xl p-12 text-center">
             <RefreshCw className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-600 mb-4" />
@@ -427,6 +422,7 @@ export default function RecurringExpenses() {
             })}
           </div>
         )}
+      </div>
     </Layout>
   );
 }

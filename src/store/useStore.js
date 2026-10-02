@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { db } from '@/firebase/config';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { db, doc, setDoc, getDoc, serverTimestamp } from '@/lib/localDb';
 
 // internal update queue to serialize async updates (prevents races when addPoints is called rapidly)
 let _updateQueue = Promise.resolve();
@@ -115,7 +114,7 @@ const useStore = create(
           }
         });
         
-        // Persist to Firestore - use setDoc with merge
+        // Persist to local storage - use setDoc with merge
         if (state.user?.uid) {
           try {
             const userRef = doc(db, 'users', state.user.uid);
@@ -143,7 +142,7 @@ const useStore = create(
               }, { merge: true });
             }
           } catch (error) {
-            console.error('Error saving badge to Firestore:', error);
+            console.error('Error saving badge:', error);
           }
         }
       },

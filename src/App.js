@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from '@/firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { db, doc, getDoc } from '@/lib/localDb';
 import useStore from '@/store/useStore';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -33,62 +31,24 @@ const PrivateRoute = ({ children }) => {
 };
 
 function App() {
-  const { user, setUser, setUserStats } = useStore();
-  const [loading, setLoading] = useState(true);
+  const { user, setUserStats } = useStore();
+  const uid = user?.uid;
 
+  // The local profile is persisted by the store; refresh its stats from local data
   useEffect(() => {
-    let timeoutId;
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      clearTimeout(timeoutId);
-
-      if (firebaseUser) {
-        setUser(firebaseUser);
-
-        // Load user stats from Firestore
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userRef);
-
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setUserStats({
-            points: data.points || 0,
-            level: data.level || 1,
-            badges: data.badges || [],
-            streaks: data.streaks || { attendance: 0, mood: 0, health: 0 }
-          });
-        }
-      } else {
-        setUser(null);
+    if (!uid) return;
+    getDoc(doc(db, 'users', uid)).then((userDoc) => {
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUserStats({
+          points: data.points || 0,
+          level: data.level || 1,
+          badges: data.badges || [],
+          streaks: data.streaks || { attendance: 0, mood: 0, health: 0 }
+        });
       }
-      setLoading(false);
-    }, (error) => {
-      console.error('Auth error:', error);
-      setLoading(false);
     });
-
-    // Safety timeout (3 seconds max)
-    timeoutId = setTimeout(() => {
-      setLoading(false);
-    }, 3000);
-
-    return () => {
-      clearTimeout(timeoutId);
-      unsubscribe();
-    };
-  }, [setUser, setUserStats]);
-
-  if (loading) {
-    return (
-      <ThemeProvider>
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading TrackitAll...</p>
-          </div>
-        </div>
-      </ThemeProvider>
-    );
-  }
+  }, [uid, setUserStats]);
 
   return (
     <ThemeProvider>

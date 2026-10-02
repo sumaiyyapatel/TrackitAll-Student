@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { CheckCircle2, Circle, Plus, TrendingUp, Calendar as CalendarIcon, Flame, Trash2, Edit2, X } from 'lucide-react';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db, collection, addDoc, query, where, getDocs, updateDoc, doc, deleteDoc } from '@/lib/localDb';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +45,7 @@ export default function Habits() {
   const loadHabits = async () => {
     try {
       // Note: this collection currently uses `createdAt` for ordering.
-      // We intentionally avoid ordering by createdAt in Firestore to keep queries canonical.
+      // We intentionally avoid ordering by createdAt to keep queries canonical.
       // Client-side we sort by createdAt after fetching by userId only. Consider migrating to `date` later.
       const habitsQuery = query(collection(db, 'habits'), where('userId', '==', user.uid));
       const habitsSnap = await getDocs(habitsQuery);

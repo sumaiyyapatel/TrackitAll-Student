@@ -3,8 +3,7 @@ import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Settings as SettingsIcon, Download, Upload, Moon, Sun, Bell, Shield, Database } from 'lucide-react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db, collection, getDocs, query, where } from '@/lib/localDb';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -252,7 +251,7 @@ export default function Settings() {
           </div>
           <div className="space-y-3">
             <div className="p-4 bg-muted/50 rounded-xl">
-              <p className="text-sm text-foreground mb-2"><span className="font-semibold">Data Storage:</span> All your data is securely stored in Firebase and encrypted.</p>
+              <p className="text-sm text-foreground mb-2"><span className="font-semibold">Data Storage:</span> All your data is stored locally in this browser and never leaves your device.</p>
             </div>
             <div className="p-4 bg-muted/50 rounded-xl">
               <p className="text-sm text-foreground mb-2"><span className="font-semibold">Privacy:</span> Your data is private and only accessible to you.</p>
@@ -268,7 +267,7 @@ export default function Settings() {
           <h2 className="text-xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>About TrackitAll</h2>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p>Version: 1.0.0</p>
-            <p>Built with React + Firebase</p>
+            <p>Built with React</p>
             <p className="pt-4 border-t border-border">TrackitAll helps students track attendance, finances, health, mood, and goals in one beautiful app.</p>
           </div>
         </div>

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Droplets, Scale, TrendingUp } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db, collection, getDocs } from '@/lib/localDb';
 import { userRecent } from '@/utils/canonicalQueries';
 import { normalizeDate } from '@/utils/dateNormalizer';
 import { CATEGORY_THEMES } from '@/utils/categoryColors';

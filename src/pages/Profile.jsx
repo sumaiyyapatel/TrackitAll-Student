@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import useStore from '@/store/useStore';
 import { User, Trophy, Award, LogOut, Mail } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '@/firebase/config';
-import { signOut } from 'firebase/auth';
+import { db, doc, updateDoc } from '@/lib/localDb';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,14 +34,9 @@ export default function Profile() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      clearUser();
-      toast.success('Logged out successfully');
-    } catch (error) {
-      toast.error('Error logging out');
-    }
+  const handleLogout = () => {
+    clearUser();
+    toast.success('Logged out successfully');
   };
 
   const levelProgress = getLevelProgress(userStats.points);
